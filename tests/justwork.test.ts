@@ -1,7 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { CapabilityManifest, JevProvider, JevRawResponse } from "../src/types.js";
-import { JevRouter } from "../src/router.js";
 
 const capabilities: CapabilityManifest[] = [
   {
@@ -38,31 +37,12 @@ async function loadAdapter(): Promise<any> {
   return import(modulePath);
 }
 
-test("JevRouter can policy-check an explicit capability without calling Jev", async () => {
-  const provider = new CountingProvider({
-    answers: { tool: { type: "choice", choice: "search.web", probabilities: { "search.web": 1, "deploy.prod": 0 }, confidence: 1 } },
-  });
-  const router = new JevRouter(provider, { allowed_risk_levels: ["low", "high"] });
-  const routeSelected = (router as unknown as {
-    routeSelected(input: { request: string; actor_permissions?: string[] }, candidates: CapabilityManifest[], capabilityId: string): Promise<any>;
-  }).routeSelected.bind(router);
-
-  const result = await routeSelected({ request: "search now" }, capabilities, "search.web");
-
-  assert.equal(provider.calls, 0);
-  assert.equal(result.status, "selected");
-  assert.equal(result.decision.selected, "search.web");
-  assert.equal(result.decision.jev_choice, null);
-  assert.equal(result.raw_jev, null);
-});
-
 test("JustWork uses an explicit deterministic capability before Jev and marks consequential work for the authority gate", async () => {
   const { JustWorkAdapter } = await loadAdapter();
   const provider = new CountingProvider({
     answers: { tool: { type: "choice", choice: "deploy.prod", probabilities: { "search.web": 0.1, "deploy.prod": 0.9 }, confidence: 0.9 } },
   });
-  const router = new JevRouter(provider, { allowed_risk_levels: ["low", "high"] });
-  const adapter = new JustWorkAdapter(router, capabilities);
+  const adapter = new JustWorkAdapter(provider, capabilities, { allowed_risk_levels: ["low", "high"] });
 
   const result = await adapter.route({ request: "search now", capability_id: "search.web", consequential: true });
 
@@ -76,13 +56,28 @@ test("JustWork uses an explicit deterministic capability before Jev and marks co
   });
 });
 
+test("JustWork policy-checks an explicit capability before dispatch", async () => {
+  const { JustWorkAdapter } = await loadAdapter();
+  const provider = new CountingProvider({
+    answers: { tool: { type: "choice", choice: "search.web", probabilities: { "search.web": 0.9, "deploy.prod": 0.1 }, confidence: 0.9 } },
+  });
+  const adapter = new JustWorkAdapter(provider, capabilities, { allowed_risk_levels: ["low", "high"] });
+
+  const result = await adapter.route({ request: "deploy this", capability_id: "deploy.prod", actor_permissions: [] });
+
+  assert.equal(provider.calls, 0);
+  assert.equal(result.source, "deterministic");
+  assert.equal(result.route.status, "no_decision");
+  assert.equal(result.dispatch.kind, "reasoning_fallback");
+  assert.match(result.dispatch.reason ?? "", /actor_missing_permissions:deploy/);
+});
+
 test("JustWork sends an ordinary high-confidence Jev selection directly to the capability", async () => {
   const { JustWorkAdapter } = await loadAdapter();
   const provider = new CountingProvider({
     answers: { tool: { type: "choice", choice: "search.web", probabilities: { "search.web": 0.9, "deploy.prod": 0.1 }, confidence: 0.9 } },
   });
-  const router = new JevRouter(provider, { min_confidence: 0.55, allowed_risk_levels: ["low", "high"] });
-  const adapter = new JustWorkAdapter(router, capabilities);
+  const adapter = new JustWorkAdapter(provider, capabilities, { min_confidence: 0.55, allowed_risk_levels: ["low", "high"] });
 
   const result = await adapter.route({ request: "find the current release notes" });
 
@@ -98,8 +93,7 @@ test("JustWork sends Jev no_decision to the reasoning fallback", async () => {
   const provider = new CountingProvider({
     answers: { tool: { type: "choice", choice: "search.web", probabilities: { "search.web": 0.51, "deploy.prod": 0.49 }, confidence: 0.2 } },
   });
-  const router = new JevRouter(provider, { min_confidence: 0.55, allowed_risk_levels: ["low", "high"] });
-  const adapter = new JustWorkAdapter(router, capabilities);
+  const adapter = new JustWorkAdapter(provider, capabilities, { min_confidence: 0.55, allowed_risk_levels: ["low", "high"] });
 
   const result = await adapter.route({ request: "do the thing" });
 
@@ -113,8 +107,7 @@ test("JustWork keeps confirmation-required choices as human exceptions", async (
   const provider = new CountingProvider({
     answers: { tool: { type: "choice", choice: "deploy.prod", probabilities: { "search.web": 0.1, "deploy.prod": 0.9 }, confidence: 0.9 } },
   });
-  const router = new JevRouter(provider, { min_confidence: 0.55, allowed_risk_levels: ["low", "high"] });
-  const adapter = new JustWorkAdapter(router, capabilities);
+  const adapter = new JustWorkAdapter(provider, capabilities, { min_confidence: 0.55, allowed_risk_levels: ["low", "high"] });
 
   const result = await adapter.route({ request: "deploy this", actor_permissions: ["deploy"], consequential: true });
 
