@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import type { CapabilityManifest, JevProvider, JevRawResponse } from "../src/types.js";
+import { JustWorkAdapter } from "../src/justwork.js";
 
 const capabilities: CapabilityManifest[] = [
   {
@@ -32,13 +33,7 @@ class CountingProvider implements JevProvider {
   }
 }
 
-async function loadAdapter(): Promise<any> {
-  const modulePath: string = "../src/justwork.js";
-  return import(modulePath);
-}
-
 test("JustWork uses an explicit deterministic capability before Jev and marks consequential work for the authority gate", async () => {
-  const { JustWorkAdapter } = await loadAdapter();
   const provider = new CountingProvider({
     answers: { tool: { type: "choice", choice: "deploy.prod", probabilities: { "search.web": 0.1, "deploy.prod": 0.9 }, confidence: 0.9 } },
   });
@@ -57,7 +52,6 @@ test("JustWork uses an explicit deterministic capability before Jev and marks co
 });
 
 test("JustWork policy-checks an explicit capability before dispatch", async () => {
-  const { JustWorkAdapter } = await loadAdapter();
   const provider = new CountingProvider({
     answers: { tool: { type: "choice", choice: "search.web", probabilities: { "search.web": 0.9, "deploy.prod": 0.1 }, confidence: 0.9 } },
   });
@@ -73,7 +67,6 @@ test("JustWork policy-checks an explicit capability before dispatch", async () =
 });
 
 test("JustWork sends an ordinary high-confidence Jev selection directly to the capability", async () => {
-  const { JustWorkAdapter } = await loadAdapter();
   const provider = new CountingProvider({
     answers: { tool: { type: "choice", choice: "search.web", probabilities: { "search.web": 0.9, "deploy.prod": 0.1 }, confidence: 0.9 } },
   });
@@ -89,7 +82,6 @@ test("JustWork sends an ordinary high-confidence Jev selection directly to the c
 });
 
 test("JustWork sends Jev no_decision to the reasoning fallback", async () => {
-  const { JustWorkAdapter } = await loadAdapter();
   const provider = new CountingProvider({
     answers: { tool: { type: "choice", choice: "search.web", probabilities: { "search.web": 0.51, "deploy.prod": 0.49 }, confidence: 0.2 } },
   });
@@ -103,7 +95,6 @@ test("JustWork sends Jev no_decision to the reasoning fallback", async () => {
 });
 
 test("JustWork keeps confirmation-required choices as human exceptions", async () => {
-  const { JustWorkAdapter } = await loadAdapter();
   const provider = new CountingProvider({
     answers: { tool: { type: "choice", choice: "deploy.prod", probabilities: { "search.web": 0.1, "deploy.prod": 0.9 }, confidence: 0.9 } },
   });
