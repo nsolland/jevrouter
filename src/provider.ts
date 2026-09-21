@@ -132,6 +132,18 @@ export class OpenSparkJevProvider implements JevProvider {
   async decide(request: JevRouteRequest): Promise<JevRawResponse> {
     const headers: Record<string, string> = { "Content-Type": "application/json" };
     if (this.options.apiKey?.trim()) headers.Authorization = `Bearer ${this.options.apiKey.trim()}`;
+    const questions = buildQuestions(request);
+    for (const [key, question] of Object.entries(questions)) {
+      if (question.type === "choice" && question.criteria && typeof question.criteria === "object" && !Array.isArray(question.criteria)) {
+        const count = Object.keys(question.criteria).length;
+        if (count > 26) {
+          throw new JevProviderError("jev_http_error", `Open Spark Jev supports at most 26 Choice options; questions.${key} has ${count}`);
+        }
+      }
+      if (question.type === "score" && Array.isArray(question.criteria) && question.criteria.length > 26) {
+        throw new JevProviderError("jev_http_error", `Open Spark Jev supports at most 26 Score levels; questions.${key} has ${question.criteria.length}`);
+      }
+    }
 
     const response = await fetch(this.endpoint, {
       method: "POST",
@@ -139,7 +151,7 @@ export class OpenSparkJevProvider implements JevProvider {
       body: JSON.stringify({
         state: request.state,
         model: request.model ?? this.model,
-        questions: buildQuestions(request),
+        questions,
       }),
       signal: AbortSignal.timeout(this.timeoutMs),
     }).catch((error: unknown) => {
