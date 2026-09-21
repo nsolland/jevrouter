@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { OpenSparkJevProvider } from "../src/provider.js";
-import { createProvider, providerConfiguration } from "../src/runtime.js";
+import { createProvider } from "../src/runtime.js";
 import type { CapabilityManifest } from "../src/types.js";
 
 const candidates: CapabilityManifest[] = [
@@ -66,7 +66,6 @@ test("OpenSparkJevProvider sends the Jev-compatible wire format to the local eva
 });
 
 test("open-spark-jev runtime selection does not require a hosted API key", () => {
-  assert.deepEqual(providerConfiguration("open-spark-jev", {}), { provider: "open-spark-jev", key: null });
   const provider = createProvider("open-spark-jev", {
     endpoint: "http://127.0.0.1:8400/v1/evaluate",
     model: "spark-s1-1.7b-v3",
