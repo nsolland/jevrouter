@@ -96,3 +96,37 @@ test("OpenSparkJevProvider rejects Choice menus larger than the local API suppor
   );
   assert.equal(fetched, false);
 });
+
+test("OpenSparkJevProvider rejects Choice menus smaller than the local API supports before fetch", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let fetched = false;
+  globalThis.fetch = (async () => {
+    fetched = true;
+    throw new Error("fetch must not run");
+  }) as typeof fetch;
+
+  const provider = new OpenSparkJevProvider();
+  await assert.rejects(
+    provider.decide({ state: "route this", candidates: [candidates[0]] }),
+    /at least 2 Choice options/,
+  );
+  assert.equal(fetched, false);
+});
+
+test("OpenSparkJevProvider rejects Score rubrics outside the local API bounds before fetch", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let fetched = false;
+  globalThis.fetch = (async () => {
+    fetched = true;
+    throw new Error("fetch must not run");
+  }) as typeof fetch;
+
+  const provider = new OpenSparkJevProvider();
+  await assert.rejects(
+    provider.decide({ state: "score this", candidates, questions: { severity: { type: "score", criteria: ["only"] } } }),
+    /at least 2 Score levels/,
+  );
+  assert.equal(fetched, false);
+});
