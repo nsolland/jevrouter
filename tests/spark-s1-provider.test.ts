@@ -22,6 +22,7 @@ const candidates: CapabilityManifest[] = [
 test("SparkS1Provider uses the local Jev-compatible evaluate contract", async () => {
   const SparkS1Provider = (providerModule as unknown as { SparkS1Provider?: SparkProviderConstructor }).SparkS1Provider;
   assert.equal(typeof SparkS1Provider, "function", "provider must export SparkS1Provider");
+  if (typeof SparkS1Provider !== "function") return;
 
   const originalFetch = globalThis.fetch;
   let seenUrl = "";
