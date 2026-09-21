@@ -107,6 +107,56 @@ export class HttpJevProvider implements JevProvider {
   }
 }
 
+export interface SparkS1ProviderOptions {
+  endpoint?: string;
+  model?: string;
+  timeoutMs?: number;
+}
+
+/** Local Open Spark Jev adapter using its Jev-compatible /v1/evaluate wire format. */
+export class SparkS1Provider implements JevProvider {
+  readonly name: string;
+  private readonly endpoint: string;
+  private readonly model: string;
+  private readonly timeoutMs: number;
+
+  constructor(options: SparkS1ProviderOptions = {}) {
+    this.endpoint = options.endpoint ?? "http://127.0.0.1:8400/v1/evaluate";
+    this.model = options.model ?? "spark-s1-4b-v3";
+    this.timeoutMs = options.timeoutMs ?? 15_000;
+    this.name = `open-spark-jev:${this.model}`;
+  }
+
+  async decide(request: JevRouteRequest): Promise<JevRawResponse> {
+    const response = await fetch(this.endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        state: request.state,
+        model: request.model ?? this.model,
+        questions: buildQuestions(request),
+      }),
+      signal: AbortSignal.timeout(this.timeoutMs),
+    }).catch((error: unknown) => {
+      if (error instanceof DOMException && error.name === "TimeoutError") {
+        throw new JevProviderError("jev_timeout", `spark-s1 request timed out after ${this.timeoutMs}ms`);
+      }
+      throw new JevProviderError("jev_http_error", error instanceof Error ? error.message : String(error));
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      throw new JevProviderError("jev_http_error", `spark-s1 provider returned HTTP ${response.status}: ${body.slice(0, 240)}`, response.status);
+    }
+
+    const raw = (await response.json()) as unknown;
+    if (!isJevRawResponse(raw) || !raw.answers || typeof raw.answers !== "object") {
+      throw new JevProviderError("jev_malformed_response", "spark-s1 response has no answers object");
+    }
+    return raw;
+  }
+}
+
 /** OpenRouter's native Decisions adapter. It uses the same typed request/response
  * shape as TypeSafe's endpoint, but through OpenRouter's alpha decisions route. */
 export class OpenRouterJevProvider implements JevProvider {
