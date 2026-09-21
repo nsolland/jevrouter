@@ -1,4 +1,4 @@
-import { CachedJevProvider, DemoProvider, HttpJevProvider, OpenRouterJevProvider } from "./provider.js";
+import { CachedJevProvider, DemoProvider, HttpJevProvider, OpenRouterJevProvider, SparkS1Provider } from "./provider.js";
 import type { JevProvider } from "./types.js";
 
 export type ProviderKind = "typesafe" | "openrouter" | "demo";
@@ -10,7 +10,7 @@ export interface ProviderOptions {
   cache?: boolean;
 }
 
-/** Resolve provider and key together, never borrowing another provider's credentials. */
+/** Resolve hosted provider and key together, never borrowing another provider's credentials. */
 export function providerConfiguration(kind?: string, env: NodeJS.ProcessEnv = process.env): { provider: ProviderKind; key: KeyName } {
   kind = kind?.trim() || undefined;
   if (kind !== undefined && !["typesafe", "openrouter", "demo"].includes(kind)) throw new Error("provider must be typesafe, openrouter, or demo");
@@ -20,7 +20,16 @@ export function providerConfiguration(kind?: string, env: NodeJS.ProcessEnv = pr
 }
 
 export function createProvider(kind?: string, options: ProviderOptions = {}): JevProvider {
-  const config = providerConfiguration(kind);
+  const normalizedKind = kind?.trim() || undefined;
+  if (normalizedKind === "spark-s1") {
+    const provider: JevProvider = new SparkS1Provider({
+      endpoint: options.endpoint ?? process.env.SPARK_S1_API_URL ?? process.env.JEV_API_URL,
+      model: options.model ?? process.env.SPARK_S1_MODEL ?? "spark-s1-4b-v3",
+    });
+    return options.cache === true && process.env.JEV_ROUTER_CACHE !== "0" ? new CachedJevProvider(provider) : provider;
+  }
+
+  const config = providerConfiguration(normalizedKind);
   if (config.provider === "demo") return new DemoProvider();
   const apiKey = options.apiKey?.trim() || process.env[config.key]?.trim();
   if (!apiKey) throw new Error(`Missing ${config.key}. Export it in the Agent's environment; offline tests must explicitly use --provider demo.`);
