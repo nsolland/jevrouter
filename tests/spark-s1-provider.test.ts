@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as providerModule from "../src/provider.js";
+import { createProvider } from "../src/runtime.js";
 import type { CapabilityManifest, JevRawResponse, JevRouteRequest } from "../src/types.js";
 
 interface SparkProviderLike {
@@ -74,4 +75,9 @@ test("SparkS1Provider uses the local Jev-compatible evaluate contract", async ()
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test("runtime can select spark-s1 without hosted-provider credentials", () => {
+  const provider = createProvider("spark-s1");
+  assert.equal(provider.name, "open-spark-jev:spark-s1-4b-v3");
 });
