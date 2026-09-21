@@ -136,12 +136,20 @@ export class OpenSparkJevProvider implements JevProvider {
     for (const [key, question] of Object.entries(questions)) {
       if (question.type === "choice" && question.criteria && typeof question.criteria === "object" && !Array.isArray(question.criteria)) {
         const count = Object.keys(question.criteria).length;
+        if (count < 2) {
+          throw new JevProviderError("jev_http_error", `Open Spark Jev requires at least 2 Choice options; questions.${key} has ${count}`);
+        }
         if (count > 26) {
           throw new JevProviderError("jev_http_error", `Open Spark Jev supports at most 26 Choice options; questions.${key} has ${count}`);
         }
       }
-      if (question.type === "score" && Array.isArray(question.criteria) && question.criteria.length > 26) {
-        throw new JevProviderError("jev_http_error", `Open Spark Jev supports at most 26 Score levels; questions.${key} has ${question.criteria.length}`);
+      if (question.type === "score" && Array.isArray(question.criteria)) {
+        if (question.criteria.length < 2) {
+          throw new JevProviderError("jev_http_error", `Open Spark Jev requires at least 2 Score levels; questions.${key} has ${question.criteria.length}`);
+        }
+        if (question.criteria.length > 26) {
+          throw new JevProviderError("jev_http_error", `Open Spark Jev supports at most 26 Score levels; questions.${key} has ${question.criteria.length}`);
+        }
       }
     }
 
