@@ -72,3 +72,27 @@ test("open-spark-jev runtime selection does not require a hosted API key", () =>
   });
   assert.equal(provider.name, "open-spark-jev:spark-s1-1.7b-v3");
 });
+
+test("OpenSparkJevProvider rejects Choice menus larger than the local API supports before fetch", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  let fetched = false;
+  globalThis.fetch = (async () => {
+    fetched = true;
+    throw new Error("fetch must not run");
+  }) as typeof fetch;
+
+  const provider = new OpenSparkJevProvider();
+  const manyCandidates: CapabilityManifest[] = Array.from({ length: 27 }, (_, index) => ({
+    id: `tool-${index}`,
+    name: `Tool ${index}`,
+    type: "mcp_tool",
+    description: `Tool ${index}`,
+  }));
+
+  await assert.rejects(
+    provider.decide({ state: "route this", candidates: manyCandidates }),
+    /at most 26 Choice options/,
+  );
+  assert.equal(fetched, false);
+});
