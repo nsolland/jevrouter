@@ -1,4 +1,5 @@
 import { defaultPolicy } from "./manifest.js";
+import { minimumQualifiedPool } from "./qualification.js";
 import { JevRouter } from "./router.js";
 import type {
   CapabilityManifest,
@@ -15,6 +16,8 @@ import { requestId, sha256, validateJsonInput } from "./utils.js";
 export interface JustWorkRouteInput extends RouteInput {
   /** Explicit capability chosen by deterministic application logic. Jev is not called. */
   capability_id?: string;
+  /** Workload class used to admit only models with measured qualification evidence for this class. */
+  task_class?: string;
   /** Consequential effects must pass the external Heimel/REHT authority gate before execution. */
   consequential?: boolean;
 }
@@ -37,6 +40,7 @@ export interface JustWorkRouteResult {
 /**
  * Thin JustWork boundary around JevRouter.
  *
+ * - model candidates enter the active pool only with measured qualification evidence;
  * - deterministic capability ids bypass Jev but still receive the same policy checks;
  * - learned choices go through JevRouter unchanged;
  * - no_decision is handed to a reasoning LLM;
@@ -59,8 +63,10 @@ export class JustWorkAdapter {
   }
 
   async route(input: JustWorkRouteInput): Promise<JustWorkRouteResult> {
+    const active = minimumQualifiedPool(this.ordered, input.task_class);
+
     if (input.capability_id) {
-      const route = this.routeDeterministic(input, input.capability_id);
+      const route = this.routeDeterministic(input, input.capability_id, active);
       return {
         source: "deterministic",
         route,
@@ -68,7 +74,7 @@ export class JustWorkAdapter {
       };
     }
 
-    const route = await this.router.route(input, this.ordered);
+    const route = await this.router.route(input, active);
     return {
       source: "jev",
       route,
@@ -76,8 +82,8 @@ export class JustWorkAdapter {
     };
   }
 
-  private routeDeterministic(input: JustWorkRouteInput, capabilityId: string): RouteResult {
-    const candidates = this.ordered.map((candidate) => deterministicCandidateView(candidate, input.actor_permissions, this.policy));
+  private routeDeterministic(input: JustWorkRouteInput, capabilityId: string, ordered: CapabilityManifest[]): RouteResult {
+    const candidates = ordered.map((candidate) => deterministicCandidateView(candidate, input.actor_permissions, this.policy));
     const selected = candidates.find((candidate) => candidate.id === capabilityId) ?? null;
     const base = {
       request_id: requestId("req"),
@@ -86,7 +92,7 @@ export class JustWorkAdapter {
       execution: { enabled: false as const, status: "not_started" as const },
       provenance: {
         jev_provider: "not_called",
-        candidate_snapshot_hash: sha256(this.ordered),
+        candidate_snapshot_hash: sha256(ordered),
         policy_hash: sha256(this.policy),
       },
     };
@@ -125,7 +131,7 @@ export class JustWorkAdapter {
       };
     }
 
-    const manifest = this.ordered.find((candidate) => candidate.id === capabilityId);
+    const manifest = ordered.find((candidate) => candidate.id === capabilityId);
     const inputErrors = manifest && input.input !== undefined
       ? validateJsonInput(input.input, manifest.input_schema)
       : [];
