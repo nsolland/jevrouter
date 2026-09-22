@@ -107,6 +107,83 @@ export class HttpJevProvider implements JevProvider {
   }
 }
 
+export interface OpenSparkJevProviderOptions {
+  endpoint?: string;
+  model?: string;
+  apiKey?: string;
+  timeoutMs?: number;
+}
+
+/** Local Open Spark Jev adapter using its Jev-compatible /v1/evaluate endpoint.
+ * spark-s1 supplies probabilistic typed decisions only; router policy remains authoritative. */
+export class OpenSparkJevProvider implements JevProvider {
+  readonly name: string;
+  private readonly endpoint: string;
+  private readonly model: string;
+  private readonly timeoutMs: number;
+
+  constructor(private readonly options: OpenSparkJevProviderOptions = {}) {
+    this.endpoint = options.endpoint ?? "http://127.0.0.1:8400/v1/evaluate";
+    this.model = options.model ?? "spark-s1-4b-v3";
+    this.timeoutMs = options.timeoutMs ?? 15_000;
+    this.name = `open-spark-jev:${this.model}`;
+  }
+
+  async decide(request: JevRouteRequest): Promise<JevRawResponse> {
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (this.options.apiKey?.trim()) headers.Authorization = `Bearer ${this.options.apiKey.trim()}`;
+    const questions = buildQuestions(request);
+    for (const [key, question] of Object.entries(questions)) {
+      if (question.type === "choice" && question.criteria && typeof question.criteria === "object" && !Array.isArray(question.criteria)) {
+        const count = Object.keys(question.criteria).length;
+        if (count < 2) {
+          throw new JevProviderError("jev_http_error", `Open Spark Jev requires at least 2 Choice options; questions.${key} has ${count}`);
+        }
+        if (count > 26) {
+          throw new JevProviderError("jev_http_error", `Open Spark Jev supports at most 26 Choice options; questions.${key} has ${count}`);
+        }
+      }
+      if (question.type === "score" && Array.isArray(question.criteria)) {
+        if (question.criteria.length < 2) {
+          throw new JevProviderError("jev_http_error", `Open Spark Jev requires at least 2 Score levels; questions.${key} has ${question.criteria.length}`);
+        }
+        if (question.criteria.length > 26) {
+          throw new JevProviderError("jev_http_error", `Open Spark Jev supports at most 26 Score levels; questions.${key} has ${question.criteria.length}`);
+        }
+      }
+    }
+
+    const response = await fetch(this.endpoint, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        state: request.state,
+        model: request.model ?? this.model,
+        questions,
+      }),
+      signal: AbortSignal.timeout(this.timeoutMs),
+    }).catch((error: unknown) => {
+      if (error instanceof DOMException && error.name === "TimeoutError") {
+        throw new JevProviderError("jev_timeout", `Open Spark Jev request timed out after ${this.timeoutMs}ms`);
+      }
+      throw new JevProviderError("jev_http_error", error instanceof Error ? error.message : String(error));
+    });
+
+    if (response.status === 401 || response.status === 403) {
+      throw new JevProviderError("jev_auth_error", "Open Spark Jev rejected the API key", response.status);
+    }
+    if (!response.ok) {
+      const body = await response.text();
+      throw new JevProviderError("jev_http_error", `Open Spark Jev returned HTTP ${response.status}: ${body.slice(0, 240)}`, response.status);
+    }
+    const raw = (await response.json()) as unknown;
+    if (!isJevRawResponse(raw) || !raw.answers || typeof raw.answers !== "object") {
+      throw new JevProviderError("jev_malformed_response", "Open Spark Jev response has no answers object");
+    }
+    return raw;
+  }
+}
+
 /** OpenRouter's native Decisions adapter. It uses the same typed request/response
  * shape as TypeSafe's endpoint, but through OpenRouter's alpha decisions route. */
 export class OpenRouterJevProvider implements JevProvider {
