@@ -70,3 +70,40 @@ test("JustWork fails closed when a task class has no qualified model candidate",
   assert.equal(result.route.status, "no_decision");
   assert.equal(result.route.decision.selected, null);
 });
+
+test("accepts finite harness benchmark evidence on a qualified model configuration", async () => {
+  const provider = new RecordingProvider();
+  const adapter = new JustWorkAdapter(provider, [
+    model("model.harness-qualified", {
+      status: "qualified",
+      task_classes: ["coding"],
+      evidence_source: "agentic-coding-harness-benchmarks/run-21",
+      harness: "codex",
+      repository: "owner/repo",
+      quality: 0.91,
+      cost: 0.42,
+      latency_ms: 8200,
+      compute: "standard",
+    }),
+  ], { min_confidence: 0 });
+
+  await adapter.route({ request: "fix issue", task_class: "coding" });
+  assert.deepEqual(provider.seen, ["model.harness-qualified"]);
+});
+
+test("rejects malformed benchmark metrics instead of admitting them", async () => {
+  const provider = new RecordingProvider();
+  const adapter = new JustWorkAdapter(provider, [
+    model("model.bad-evidence", {
+      status: "qualified",
+      task_classes: ["coding"],
+      evidence_source: "benchmark/run-bad",
+      harness: "codex",
+      quality: Number.NaN,
+    }),
+  ], { min_confidence: 0 });
+
+  const result = await adapter.route({ request: "fix issue", task_class: "coding" });
+  assert.equal(provider.seen.length, 0);
+  assert.equal(result.route.status, "no_decision");
+});
