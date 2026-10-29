@@ -7,7 +7,7 @@ export interface RouteOptions {
   candidates?: CapabilityInput[];
   capabilityDir?: string;
   apiKey?: string;
-  provider?: "typesafe" | "openrouter" | "open-spark-jev" | "demo";
+  provider?: "typesafe" | "openrouter" | "open-spark-jev" | "zuse" | "demo";
   endpoint?: string;
   model?: string;
   policy?: RouterPolicy;

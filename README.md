@@ -94,6 +94,28 @@ const planResult = await plan({ request, candidates: agentTools }, { steps: 3, m
 
 Try everything offline with the labelled demo provider (`--provider demo`) — no key required.
 
+### Bineric Zuse candidate (EU-hosted, opt-in)
+
+Zuse 27B and 9B implement Jev-compatible typed decisions. JevRouter can call Bineric directly without changing the routing, risk, permission, or confirmation contract:
+
+```bash
+export BINERIC_API_KEY="<your Bineric key>"
+npm run dev -- route --provider zuse --request "Classify this request" \
+  --candidates '[{"id":"read","name":"Read","type":"mcp_tool","description":"Read a document"},{"id":"review","name":"Review","type":"skill","description":"Request human review"}]'
+```
+
+The default is `zuse-27b` at `https://api.bineric.com/v1/zuse`. Set `ZUSE_MODEL=zuse-9b` for the lower-cost model. `BINERIC_ZUSE_API_URL` can point to an explicitly configured dedicated/on-prem endpoint. Credentials are separate from `TYPESAFE_API_KEY` and `OPENROUTER_API_KEY`, and choosing Zuse is never automatic. SDK users can pass `{ provider: "zuse", model: "zuse-9b" }`.
+
+This is an integration candidate, **not a verified accuracy or safety claim**. Vendor-reported benchmark values must not be used as production confidence thresholds. Before enabling a production route, run a frozen, labelled holdout against Jev and other applicable baselines; report per-class accuracy, calibration, selective error at each threshold, latency, cost per accepted decision, abstentions, and failure modes (missing evidence, contradictory policy, prompt injection, stale authority). A model's classification or confidence never grants execution authority.
+
+The paired typed-decision runner rejects fewer than 200 unique labelled cases and requires an explicit `--live` flag. Each JSONL row needs `id`, `state`, `instructions`, `criteria` (option-to-description map), `expected`, `task_class`, and `language`. It reports a dataset hash, per-class/per-language results, calibration, error-versus-coverage thresholds, and latency. It does **not** infer verified task completion or cost from confidence; costs need a separate verified price and usage ledger.
+
+```bash
+npm run benchmark:typed -- --live --dataset frozen-holdout.jsonl --providers zuse,typesafe
+```
+
+This command sends the labelled documents to both named providers and can incur charges; inspect data-handling terms before running it. Without a Bineric key, TypeSafe key, and the frozen holdout, the live benchmark is pending, not passed.
+
 ## Cookbook
 
 Task-oriented recipes, each with exact commands and expected output:

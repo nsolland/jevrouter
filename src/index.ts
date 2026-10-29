@@ -11,3 +11,4 @@ export * from "./api.js";
 export * from "./agent-setup.js";
 export * from "./justwork.js";
 export * from "./outcome-eval.js";
+export * from "./typed-decision-eval.js";

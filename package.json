@@ -31,6 +31,7 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsx src/cli.ts",
     "test": "node --import tsx --test tests/*.test.ts",
+    "benchmark:typed": "npm run build && node scripts/compare-typed-decisions.mjs",
     "typecheck": "tsc --noEmit",
     "prepare": "npm run build",
     "pretest": "npm run build"

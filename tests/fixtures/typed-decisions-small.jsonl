@@ -1,0 +1,2 @@
+{"id":"a","state":"Example support ticket","instructions":"Which team?","criteria":{"billing":"Billing","technical":"Technical"},"expected":"technical","task_class":"support","language":"en"}
+{"id":"b","state":"Example complaint","instructions":"Which team?","criteria":{"billing":"Billing","technical":"Technical"},"expected":"billing","task_class":"support","language":"en"}
