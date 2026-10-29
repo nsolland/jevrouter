@@ -264,12 +264,12 @@ Commands:
   capability list
   discover [--skills <dir>] [--mcp <mcp.json>] [--cli git,docker] [--dsh <dir-or-file>]
   decision show <decision-id>
-  route --stdin | --request "..." [--candidates-file ./candidates.json] [--candidates JSON] [--input '{"query":"..."}'] [--actor-permissions read,write] [--provider demo|typesafe|openrouter]
+  route --stdin | --request "..." [--candidates-file ./candidates.json] [--candidates JSON] [--input '{"query":"..."}'] [--actor-permissions read,write] [--provider demo|typesafe|openrouter|open-spark-jev|zuse]
   plan --stdin | --request "..." [--candidates-file ./candidates.json] [--candidates JSON] [--steps 5] [--mode batch|serial]
        [--sequence argmax|beam] [--diversity-penalty 1.0] [--group-by server|type] [--decompose rule] [--thread-context]
-       [--state-detail names|targets] [--provider demo|typesafe|openrouter]
-  serve [--port 8787] [--provider demo|typesafe|openrouter]
-  serve-mcp [--provider demo|typesafe|openrouter]  stdio MCP server for Agents
+       [--state-detail names|targets] [--provider demo|typesafe|openrouter|open-spark-jev|zuse]
+  serve [--port 8787] [--provider demo|typesafe|openrouter|open-spark-jev|zuse]
+  serve-mcp [--provider demo|typesafe|openrouter|open-spark-jev|zuse]  stdio MCP server for Agents
   agent setup [--agent codex|claude|cursor|all] [--provider typesafe|openrouter] [--skip-check] [--with-mcp]
   agent start --agent codex|claude|cursor [--request "..."]  check Jev, install Skill, launch host
   agent doctor [--agent codex|claude|cursor|all] [--live]   configuration check; optional real Jev probe
@@ -278,6 +278,9 @@ Environment:
   TYPESAFE_API_KEY or JEV_API_KEY   official Jev API key
   OPENROUTER_API_KEY                OpenRouter Jev endpoint
   JEV_API_URL                        override the official endpoint
+  BINERIC_API_KEY                    Bineric Zuse endpoint (never shared with Jev/OpenRouter)
+  BINERIC_ZUSE_API_URL               optional Zuse endpoint override
+  ZUSE_MODEL                         zuse-27b (default) or zuse-9b
 `);
 }
 

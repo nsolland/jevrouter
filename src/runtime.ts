@@ -1,7 +1,7 @@
-import { CachedJevProvider, DemoProvider, HttpJevProvider, OpenRouterJevProvider, OpenSparkJevProvider } from "./provider.js";
+import { BinericZuseProvider, CachedJevProvider, DemoProvider, HttpJevProvider, OpenRouterJevProvider, OpenSparkJevProvider } from "./provider.js";
 import type { JevProvider } from "./types.js";
 
-export type ProviderKind = "typesafe" | "openrouter" | "open-spark-jev" | "demo";
+export type ProviderKind = "typesafe" | "openrouter" | "open-spark-jev" | "zuse" | "demo";
 export type KeyName = "JEV_API_KEY" | "TYPESAFE_API_KEY" | "OPENROUTER_API_KEY";
 export interface ProviderOptions {
   apiKey?: string;
@@ -21,6 +21,17 @@ export function providerConfiguration(kind?: string, env: NodeJS.ProcessEnv = pr
 
 export function createProvider(kind?: string, options: ProviderOptions = {}): JevProvider {
   const normalizedKind = kind?.trim() || undefined;
+  if (normalizedKind === "zuse") {
+    // Never send Bineric-bound documents or credentials to the TypeSafe/OpenRouter endpoints.
+    const apiKey = options.apiKey?.trim() || process.env.BINERIC_API_KEY?.trim();
+    if (!apiKey) throw new Error("Missing BINERIC_API_KEY for Zuse provider");
+    const provider: JevProvider = new BinericZuseProvider({
+      apiKey,
+      endpoint: options.endpoint ?? process.env.BINERIC_ZUSE_API_URL,
+      model: options.model ?? process.env.ZUSE_MODEL ?? "zuse-27b",
+    });
+    return options.cache === true && process.env.JEV_ROUTER_CACHE !== "0" ? new CachedJevProvider(provider) : provider;
+  }
   if (normalizedKind === "open-spark-jev") {
     const provider: JevProvider = new OpenSparkJevProvider({
       apiKey: options.apiKey?.trim() || process.env.OPEN_SPARK_JEV_API_KEY?.trim(),

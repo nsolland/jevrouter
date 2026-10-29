@@ -63,7 +63,7 @@ export interface HttpJevProviderOptions {
 }
 
 export class HttpJevProvider implements JevProvider {
-  readonly name = "typesafe";
+  readonly name: string = "typesafe";
   private readonly endpoint: string;
   private readonly model: string;
   private readonly timeoutMs: number;
@@ -104,6 +104,20 @@ export class HttpJevProvider implements JevProvider {
     const raw = (await response.json()) as unknown;
     if (!isJevRawResponse(raw)) throw new JevProviderError("jev_malformed_response", "Jev response is not an object");
     return raw;
+  }
+}
+
+/** Bineric's EU-hosted, Jev-compatible typed-decision endpoint.
+ * Zuse supplies assessments only; the router retains all policy checks. */
+export class BinericZuseProvider extends HttpJevProvider {
+  override readonly name = "bineric-zuse";
+
+  constructor(options: HttpJevProviderOptions) {
+    super({
+      ...options,
+      endpoint: options.endpoint ?? "https://api.bineric.com/v1/zuse",
+      model: options.model ?? "zuse-27b",
+    });
   }
 }
 
