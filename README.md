@@ -66,6 +66,8 @@ node dist/cli.js compute scout --sources all --salad-org YOUR_ORG --salad-gpu-cl
 
 **Important:** Raw marketplace listings are intentionally separate from `ComputeSnapshot`. GPU offers, provider-wide Akash counts, model token prices, Salad overlapping capacity tiers, and Lambda regional availability booleans cannot safely be equated with calibrated effective compute capacity or unserved demand. Convert to normalized workload-specific CU only after benchmarks, latency/accessibility checks, and independent demand measurements.
 
+The accompanying `scripts/compute-scout-report.mjs` validates each snapshot digest and compares supplier observations with a previous snapshot. It reports source failures, new/not-seen listings and measured price/availability changes without inferring capacity creation or loss. Runtime scheduling and durable storage belong to the existing VALO Compute Scout service, **not GitHub Actions**. No cloud account login or provider workload is attempted by the collection CLI.
+
 ## Benchmark
 
 First-5 tool-call prediction on 10 Toolathlon tasks (real tool inventories from 9 live MCP servers, Jev `typesafe/jev-1.13-20260917` vs DeepSeek V4.1 Flash):
