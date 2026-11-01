@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { createHash } from "node:crypto";
 import { readFile, writeFile } from "node:fs/promises";
+import { marketContext } from "./compute-market-signals.mjs";
 
 const flags = new Map(process.argv.slice(2).flatMap((value, index, values) =>
   value.startsWith("--") ? [[value, values[index + 1]]] : []));
@@ -54,6 +55,7 @@ export function summarize(current, previous = null) {
     version: 1, kind: "compute_scout_observation_report", observedAt: current.observedAt, digest: current.digest,
     previousDigest: previous?.digest ?? null,
     sourceResults: bySource,
+    externalMarketContext: marketContext(),
     publicSourcesHealthy: ["akash", "openrouter"].every(s => bySource.some(r => r.source === s && r.status === "ok" && r.records > 0)),
     metrics: {
       akashOnlineProvidersObserved: akash.length,
@@ -67,6 +69,7 @@ export function summarize(current, previous = null) {
       "New/not observed listing changes are NOT proved additions/removals of capacity.",
       "A failed source is not compared, and credential gaps are not supply shortages.",
       "No provider work, purchase or REHT execution authorization is performed.",
+      "External a16z market views are dated context, not local capacity or bankable project economics.",
     ],
   };
 }
@@ -78,7 +81,11 @@ export function markdown(report) {
     `| Source | Status | Observations | New listings | Changed measures | Not observed again |\n|---|---|---:|---:|---:|---:|\n${rows}\n\n` +
     `Akash online providers: **${report.metrics.akashOnlineProvidersObserved}**; providers reporting available GPUs: **${report.metrics.akashOnlineProvidersReportingFreeGpus}**; supplier-reported available GPUs at online providers: **${report.metrics.akashReportedAvailableGpusOnline}**.\n\n` +
     `OpenRouter model entries: **${report.metrics.openrouterModelsObserved}**; with input pricing: **${report.metrics.openrouterModelsWithInputPrice}**.\n\n` +
-    `These are observations, not verified global capacity, workload benchmarks or calibrated Solland elasticities. Missing listings are not proven removals.\n`;
+    `These are observations, not verified global capacity, workload benchmarks or calibrated Solland elasticities. Missing listings are not proven removals.\n\n` +
+    `### Dated external market context (not current supplier observations)\n\n` +
+    `Source: [a16z State of Markets II](https://a16z.com/state-of-markets-ii/) (30 September 2026); independent validation not performed.\n\n` +
+    `Signals: hyperscaler capex estimate $780B for 2026; tech ~76% of S&P 500 earnings growth through late August; ~30% report quantifiable AI impact; ~2% report a tracked AI metric; A100 rental prices held at or above start-of-year levels in a16z observations.\n\n` +
+    `These signals do not alter supplier counts, prove demand, calibrate GPU lifetimes or justify capital allocation. Context digest: \`${report.externalMarketContext.digest}\`.\n`;
 }
 
 async function main() {

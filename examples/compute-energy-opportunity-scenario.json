@@ -1,0 +1,23 @@
+{
+  "description": "Synthetic inputs only. No facility, GPU stock, energy rights, grid-export permission, customer demand or ROI has been verified.",
+  "candidates": [
+    {
+      "id": "synthetic-onsite-power-pilot",
+      "observedAt": "2026-11-01T12:00:00Z",
+      "evidence": { "kind": "scenario", "source": "synthetic-illustration-not-market-evidence" },
+      "energySource": "onsite_generation",
+      "gridExportPermitted": true,
+      "exportPriceUsdPerKwh": 0.08,
+      "gpus": 10,
+      "availableComputeHoursPerYear": 2000,
+      "gpuKwAtLoad": 0.5,
+      "pue": 1.2,
+      "paidRevenueUsdPerGpuHour": 2,
+      "energyMarginalCostUsdPerKwh": 0.05,
+      "otherVariableCostUsdPerGpuHour": 0.2,
+      "annualFixedCostUsd": 1000,
+      "annualCapitalCostUsd": 5000,
+      "annualRiskReserveUsd": 2000
+    }
+  ]
+}
