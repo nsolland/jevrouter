@@ -68,6 +68,20 @@ node dist/cli.js compute scout --sources all --salad-org YOUR_ORG --salad-gpu-cl
 
 The accompanying `scripts/compute-scout-report.mjs` validates each snapshot digest and compares supplier observations with a previous snapshot. It reports source failures, new/not-seen listings and measured price/availability changes without inferring capacity creation or loss. Runtime scheduling and durable storage belong to the existing VALO Compute Scout service, **not GitHub Actions**. No cloud account login or provider workload is attempted by the collection CLI.
 
+### Dated market signals and compute-as-flexible-load economics
+
+The Scout report now includes a separately hashed, dated **external market context** from a16z's [State of Markets II](https://a16z.com/state-of-markets-ii/) (30 September 2026): hyperscaler capex estimate, tech earnings concentration, AI impact/measurement adoption, GPU rental-price direction and aggregate compute-scarcity assessment. These are third-party reported facts or views, not live offers, calibrated GPU demand or proof of an investable opportunity. Source attribution, dates, scope and cautions are preserved per signal; supplier observation digests remain unchanged.
+
+A separate assessment command evaluates **explicit candidate economics** (paid utilization, GPU power, PUE, energy marginal cost, fixed/variable/capital expenses and supplied risk reserve) and, only where on-site generation and permitted grid-export prices are supplied, compares compute with the export alternative:
+
+```sh
+node scripts/compute-opportunity-assess.mjs --input examples/compute-energy-opportunity-scenario.json
+node scripts/compute-opportunity-assess.mjs --input examples/compute-energy-opportunity-scenario.json --out /tmp/compute-opportunity-report.json
+```
+
+All example amounts are synthetic. The result distinguishes scenarios from unverified observed candidates, includes break-even revenue per paid GPU-hour and net value per consumed MWh, and does not pretend compute is energy storage. A real project needs independent verification of available operating hours, GPU ownership, power and export rights, workload benchmarks, buyers, contract prices, financing and liquidity. It never authorizes or performs a purchase, grid switch, reservation or deployment.
+
+
 ## Benchmark
 
 First-5 tool-call prediction on 10 Toolathlon tasks (real tool inventories from 9 live MCP servers, Jev `typesafe/jev-1.13-20260917` vs DeepSeek V4.1 Flash):
