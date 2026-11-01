@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "observedAt": "2026-10-31T00:00:00Z",
+  "unit": "synthetic-normalized-cu/hour",
+  "periodDays": 1,
+  "evidence": {
+    "kind": "scenario",
+    "source": "Illustrative synthetic input. Not live capacity, price, or market data."
+  },
+  "regions": [
+    {
+      "id": "no",
+      "effectiveCapacity": 80,
+      "rootDemand": 60,
+      "capacityGrowth": 0.05,
+      "rootDemandGrowth": 0.02,
+      "sollandFactor": 0.35,
+      "sollandDecomposition": { "b": 1, "p": 0.7, "c": 0.5 },
+      "generationLag": 1,
+      "attractionElasticity": 0.3,
+      "economicAttractionElasticity": 0.2,
+      "pricePerUnit": 2.5
+    },
+    {
+      "id": "eu",
+      "effectiveCapacity": 200,
+      "rootDemand": 80,
+      "capacityGrowth": 0.1,
+      "rootDemandGrowth": 0.025,
+      "sollandFactor": 0.5,
+      "sollandDecomposition": { "b": 1.25, "p": 0.8, "c": 0.5 },
+      "generationLag": 1,
+      "attractionElasticity": 0.5,
+      "economicAttractionElasticity": 0.3,
+      "pricePerUnit": 1.8
+    },
+    {
+      "id": "us",
+      "effectiveCapacity": 250,
+      "rootDemand": 180,
+      "capacityGrowth": 0.03,
+      "rootDemandGrowth": 0.04,
+      "sollandFactor": 0.7,
+      "sollandDecomposition": { "b": 2, "p": 0.7, "c": 0.5 },
+      "generationLag": 1,
+      "attractionElasticity": 0.6,
+      "economicAttractionElasticity": 0.4,
+      "pricePerUnit": 2.1
+    }
+  ],
+  "access": [
+    { "origin": "no", "provider": "eu", "fraction": 0.5, "latencyMs": 35, "transferPricePerUnit": 0.1 },
+    { "origin": "eu", "provider": "no", "fraction": 0.2, "latencyMs": 35, "transferPricePerUnit": 0.1 },
+    { "origin": "us", "provider": "eu", "fraction": 0.3, "latencyMs": 85, "transferPricePerUnit": 0.2 }
+  ]
+}

@@ -13,3 +13,5 @@ export * from "./justwork.js";
 export * from "./outcome-eval.js";
 export * from "./typed-decision-eval.js";
 export * from "./routing/routellm-pairwise.js";
+export * from "./compute-intelligence.js";
+export * from "./compute-scout.js";
