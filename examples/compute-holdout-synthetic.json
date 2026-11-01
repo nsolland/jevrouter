@@ -1,0 +1,22 @@
+[
+  {
+    "period": 1,
+    "unit": "synthetic-normalized-cu/hour",
+    "source": "SYNTHETIC DEMO DATA — not independently observed",
+    "regions": [
+      { "id": "no", "requestedDemand": 82, "effectiveCapacity": 84, "served": 82 },
+      { "id": "eu", "requestedDemand": 125, "effectiveCapacity": 220, "served": 125 },
+      { "id": "us", "requestedDemand": 299, "effectiveCapacity": 257.5, "served": 268 }
+    ]
+  },
+  {
+    "period": 2,
+    "unit": "synthetic-normalized-cu/hour",
+    "source": "SYNTHETIC DEMO DATA — not independently observed",
+    "regions": [
+      { "id": "no", "requestedDemand": 108, "effectiveCapacity": 88.2, "served": 88.2 },
+      { "id": "eu", "requestedDemand": 185, "effectiveCapacity": 242, "served": 185 },
+      { "id": "us", "requestedDemand": 390, "effectiveCapacity": 265.225, "served": 309 }
+    ]
+  }
+]

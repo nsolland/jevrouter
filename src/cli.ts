@@ -15,6 +15,7 @@ import { doctorAgents, resolveHostCommand, setupAgents } from "./agent-setup.js"
 import { parse } from "yaml";
 import { probeJev, runPlanRequest, runRouteRequest } from "./route-command.js";
 import { ensureAgentCredentials } from "./credentials.js";
+import { compareComputeAttraction, evaluateComputeForecast, forecastComputeNetwork, planComputePlacement, type ComputeSnapshot, type ObservedComputePeriod } from "./compute-intelligence.js";
 
 const root = process.cwd();
 const registry = new CapabilityRegistry(join(root, ".jevrouter", "capabilities"));
@@ -31,11 +32,52 @@ async function main(): Promise<void> {
     if (command === "serve") return await serve(rest);
     if (command === "serve-mcp") return await serveMcp(rest);
     if (command === "agent") return await agent(rest);
+    if (command === "compute") return await compute(rest);
     printHelp();
   } catch (error) {
     console.error(`jevrouter: ${error instanceof Error ? error.message : String(error)}`);
     process.exitCode = 1;
   }
+}
+
+async function compute(args: string[]): Promise<void> {
+  const [subcommand, ...rest] = args;
+  if (subcommand !== "forecast" && subcommand !== "place" && subcommand !== "backtest") {
+    throw new Error("usage: jevrouter compute forecast|place|backtest --snapshot <file.json>");
+  }
+  const path = option(rest, "--snapshot");
+  if (!path) throw new Error("--snapshot is required");
+  const snapshot = JSON.parse(await readFile(path, "utf8")) as ComputeSnapshot;
+  if (subcommand === "backtest") {
+    const observationsFile = option(rest, "--observations");
+    if (!observationsFile) throw new Error("compute backtest requires --observations <file.json>");
+    const observations = JSON.parse(await readFile(observationsFile, "utf8")) as ObservedComputePeriod[];
+    const periods = Number(option(rest, "--periods") ?? 7);
+    console.log(JSON.stringify(evaluateComputeForecast(forecastComputeNetwork(snapshot, periods), observations), null, 2));
+    return;
+  }
+  if (subcommand === "forecast") {
+    const periods = Number(option(rest, "--periods") ?? 7);
+    const result = rest.includes("--counterfactual")
+      ? compareComputeAttraction(snapshot, periods)
+      : forecastComputeNetwork(snapshot, periods);
+    console.log(JSON.stringify(result, null, 2));
+    return;
+  }
+  const origin = option(rest, "--origin");
+  const units = Number(option(rest, "--units"));
+  if (!origin || !rest.includes("--units")) throw new Error("compute place requires --origin and --units");
+  const period = Number(option(rest, "--period") ?? 0);
+  const maxLatencyMs = option(rest, "--max-latency-ms");
+  const maxUnitPrice = option(rest, "--max-unit-price");
+  const allowed = option(rest, "--allowed");
+  const result = planComputePlacement(snapshot, {
+    origin, units, period, allowedProviders: allowed?.split(",").filter(Boolean),
+    maxLatencyMs: maxLatencyMs === undefined ? undefined : Number(maxLatencyMs),
+    maxUnitPrice: maxUnitPrice === undefined ? undefined : Number(maxUnitPrice),
+  });
+  console.log(JSON.stringify(result, null, 2));
+  if (result.status !== "candidate") process.exitCode = 2;
 }
 
 async function init(): Promise<void> {
@@ -273,6 +315,9 @@ Commands:
   agent setup [--agent codex|claude|cursor|all] [--provider typesafe|openrouter] [--skip-check] [--with-mcp]
   agent start --agent codex|claude|cursor [--request "..."]  check Jev, install Skill, launch host
   agent doctor [--agent codex|claude|cursor|all] [--live]   configuration check; optional real Jev probe
+  compute forecast --snapshot <file.json> [--periods 7] [--counterfactual]  scenario-only network forecast
+  compute place --snapshot <file.json> --origin <region> --units <CU> [--period 0] [--allowed eu,no] [--max-latency-ms 80] [--max-unit-price 2]
+  compute backtest --snapshot <file.json> --observations <holdout.json> [--periods 7]  compare to observed and naive baseline
 
 Environment:
   TYPESAFE_API_KEY or JEV_API_KEY   official Jev API key
