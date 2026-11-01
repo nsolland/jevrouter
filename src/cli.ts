@@ -16,6 +16,7 @@ import { parse } from "yaml";
 import { probeJev, runPlanRequest, runRouteRequest } from "./route-command.js";
 import { ensureAgentCredentials } from "./credentials.js";
 import { compareComputeAttraction, evaluateComputeForecast, forecastComputeNetwork, planComputePlacement, type ComputeSnapshot, type ObservedComputePeriod } from "./compute-intelligence.js";
+import { collectComputeMarket, COMPUTE_SCOUT_SOURCES, type ComputeScoutSource } from "./compute-scout.js";
 
 const root = process.cwd();
 const registry = new CapabilityRegistry(join(root, ".jevrouter", "capabilities"));
@@ -42,8 +43,9 @@ async function main(): Promise<void> {
 
 async function compute(args: string[]): Promise<void> {
   const [subcommand, ...rest] = args;
+  if (subcommand === "scout") return await computeScout(rest);
   if (subcommand !== "forecast" && subcommand !== "place" && subcommand !== "backtest") {
-    throw new Error("usage: jevrouter compute forecast|place|backtest --snapshot <file.json>");
+    throw new Error("usage: jevrouter compute scout|forecast|place|backtest");
   }
   const path = option(rest, "--snapshot");
   if (!path) throw new Error("--snapshot is required");
@@ -78,6 +80,33 @@ async function compute(args: string[]): Promise<void> {
   });
   console.log(JSON.stringify(result, null, 2));
   if (result.status !== "candidate") process.exitCode = 2;
+}
+
+async function computeScout(args: string[]): Promise<void> {
+  const sourceArg = option(args, "--sources") ?? "akash,openrouter";
+  const sources = (sourceArg === "all" ? [...COMPUTE_SCOUT_SOURCES] : sourceArg.split(",")) as ComputeScoutSource[];
+  const split = (value?: string) => value?.split(",").map(s => s.trim()).filter(Boolean);
+  const snapshot = await collectComputeMarket({
+    sources,
+    timeoutMs: Number(option(args, "--timeout-ms") ?? 15000),
+    credentials: {
+      salad: process.env.SALAD_API_KEY, vast: process.env.VAST_API_KEY,
+      runpod: process.env.RUNPOD_API_KEY, lambda: process.env.LAMBDA_API_KEY,
+      shadeform: process.env.SHADEFORM_API_KEY,
+    },
+    saladOrganization: option(args, "--salad-org") ?? process.env.SALAD_ORGANIZATION,
+    saladGpuClassIds: split(option(args, "--salad-gpu-classes")),
+    saladCountryCodes: split(option(args, "--salad-countries")),
+    zeroGpuSpaces: split(option(args, "--zero-spaces")),
+  });
+  const out = option(args, "--out");
+  if (out) {
+    await writeFile(out, `${JSON.stringify(snapshot, null, 2)}\n`, { flag: "wx" });
+    console.log(JSON.stringify({ file: out, observedAt: snapshot.observedAt, digest: snapshot.digest,
+      totalObservations: snapshot.observations.length, sources: snapshot.sources }, null, 2));
+  } else {
+    console.log(JSON.stringify(snapshot, null, 2));
+  }
 }
 
 async function init(): Promise<void> {
@@ -318,6 +347,8 @@ Commands:
   compute forecast --snapshot <file.json> [--periods 7] [--counterfactual]  scenario-only network forecast
   compute place --snapshot <file.json> --origin <region> --units <CU> [--period 0] [--allowed eu,no] [--max-latency-ms 80] [--max-unit-price 2]
   compute backtest --snapshot <file.json> --observations <holdout.json> [--periods 7]  compare to observed and naive baseline
+  compute scout [--sources akash,openrouter|all] [--out <new-file.json>] [--timeout-ms 15000]
+       [--salad-org <org>] [--salad-gpu-classes <id,id>] [--salad-countries <us,ca>] [--zero-spaces owner/space]
 
 Environment:
   TYPESAFE_API_KEY or JEV_API_KEY   official Jev API key
@@ -326,6 +357,9 @@ Environment:
   BINERIC_API_KEY                    Bineric Zuse endpoint (never shared with Jev/OpenRouter)
   BINERIC_ZUSE_API_URL               optional Zuse endpoint override
   ZUSE_MODEL                         zuse-27b (default) or zuse-9b
+  SALAD_API_KEY, SALAD_ORGANIZATION   optional supplier observations
+  VAST_API_KEY, RUNPOD_API_KEY       optional supplier observations
+  LAMBDA_API_KEY, SHADEFORM_API_KEY   optional supplier observations
 `);
 }
 

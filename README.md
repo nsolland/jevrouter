@@ -45,6 +45,27 @@ npm run dev -- compute backtest --snapshot examples/compute-scenario.json --obse
 
 The SDK exports `forecastComputeNetwork`, `compareComputeAttraction`, `planComputePlacement`, `evaluateComputeForecast` and the versioned `ComputeSnapshot` contract for future Scout ingestion. Backtesting scores independently supplied regional demand, capacity and unmet work against a persistence baseline; the example holdout is illustrative, not measured. Input demand must separate exogenous root work from recursively generated descendants, and remote capacity requires an explicit accessibility edge. Every placement is a non-authorizing decision candidate; compliance, contracts, actual inventory and execution remain outside this module.
 
+### Compute Scout: live, read-only market observations
+
+Compute Scout collects **supplier-reported** GPU availability and model prices without submitting work or booking instances. Public endpoints work without credentials:
+
+```bash
+node dist/cli.js compute scout --sources akash,openrouter --out /tmp/compute-market.json
+# Or: npm run dev -- compute scout --sources akash,openrouter
+```
+
+Authenticated source adapters are available for `salad`, `vast`, `runpod` (REST v2), `lambda`, and `shadeform`. Configure only the credentials you intend to use, then query selected sources:
+
+```bash
+# Env names: SALAD_API_KEY, VAST_API_KEY, RUNPOD_API_KEY, LAMBDA_API_KEY, SHADEFORM_API_KEY
+# Salad also requires SALAD_ORGANIZATION; availability requires GPU-class IDs.
+node dist/cli.js compute scout --sources all --salad-org YOUR_ORG --salad-gpu-classes CLASS_ID --out /tmp/compute-all.json
+```
+
+`zerogpu` is a separate Hugging Face Space endpoint inspection (`--zero-spaces owner/space`): it **does not** expose publicly rentable GPU inventory. A source with missing credentials or invalid responses reports its own failure without inventing data. Output includes per-source status, capture time, SHA-256 digest, and the supplier/price/capacity unit of each observation. Output files use create-only semantics: existing files cannot be overwritten by accident.
+
+**Important:** Raw marketplace listings are intentionally separate from `ComputeSnapshot`. GPU offers, provider-wide Akash counts, model token prices, Salad overlapping capacity tiers, and Lambda regional availability booleans cannot safely be equated with calibrated effective compute capacity or unserved demand. Convert to normalized workload-specific CU only after benchmarks, latency/accessibility checks, and independent demand measurements.
+
 ## Benchmark
 
 First-5 tool-call prediction on 10 Toolathlon tasks (real tool inventories from 9 live MCP servers, Jev `typesafe/jev-1.13-20260917` vs DeepSeek V4.1 Flash):
