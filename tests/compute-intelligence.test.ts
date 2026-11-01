@@ -184,4 +184,7 @@ test("rejects malformed or non-comparable holdout observations", () => {
   assert.throws(() => evaluateComputeForecast(forecast, [{ ...valid, regions: [
     { id: "a", requestedDemand: 20, effectiveCapacity: 100, served: 30 },
   ] }]), /served/);
+  assert.throws(() => evaluateComputeForecast(forecast, [{ ...valid, regions: [
+    { id: "a", requestedDemand: 200, effectiveCapacity: 100, served: 150 },
+  ] }]), /more global service than effective capacity/);
 });

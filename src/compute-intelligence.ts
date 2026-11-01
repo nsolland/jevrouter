@@ -348,6 +348,11 @@ export function evaluateComputeForecast(forecast: ComputeForecast, observations:
       samples++;
       details.push({ period: observed.period, id: actual.id, demandAbsoluteError: dError, capacityAbsoluteError: cError, unmetAbsoluteError: uError });
     }
+    const observedServed = observed.regions.reduce((n, r) => n + r.served, 0);
+    const observedCapacity = observed.regions.reduce((n, r) => n + r.effectiveCapacity, 0);
+    if (!Number.isFinite(observedServed) || !Number.isFinite(observedCapacity) || observedServed > observedCapacity + EPS) {
+      throw new Error("holdout cannot claim more global service than effective capacity");
+    }
   }
   return {
     status: "holdout_error_report" as const,
@@ -391,7 +396,7 @@ export function planComputePlacement(
   const projection = forecastComputeNetwork(snapshot, period + 1).periods[period]!;
   const allow = request.allowedProviders ? new Set(request.allowedProviders) : null;
   const sortedRegions = [...snapshot.regions].sort((a, b) => a.id.localeCompare(b.id));
-  const originalDemand = projection.regions.map(r => r.totalDemand);
+  const priorServedByOrigin = projection.regions.map(r => r.served);
   const originalCapacity = projection.regions.map(r => r.capacity);
   const candidates = snapshot.regions.map(region => {
     const provider = projection.regions.find(r => r.id === region.id)!;
@@ -408,13 +413,12 @@ export function planComputePlacement(
       : request.maxUnitPrice !== undefined && unitPrice! > request.maxUnitPrice ? "price_limit"
       : request.units > provider.capacity + EPS || request.units > route.fraction * provider.capacity + EPS
         ? "insufficient_residual_capacity" : null;
-    // Reserve the requested service and re-optimize old work. This catches
-    // usable capacity that a fixed residual snapshot would miss, without
-    // sacrificing any previously deliverable work.
-    const reallocated = !inputReason ? allocate(sortedRegions, originalDemand, originalCapacity, snapshot.access,
+    // Reserve the requested service and re-optimize previously served work.
+    // Each origin's prior served amount is mandatory; aggregate conservation
+    // alone could conceal displacement of already-served regional workloads.
+    const reallocated = !inputReason ? allocate(sortedRegions, priorServedByOrigin, originalCapacity, snapshot.access,
       { origin: request.origin, provider: region.id, units: request.units }) : null;
-    const reallocatedService = reallocated?.served.reduce((a, b) => a + b, 0) ?? 0;
-    const feasible = !inputReason && reallocatedService + EPS >= projection.totalServed;
+    const feasible = !inputReason && reallocated !== null && reallocated.served.every((v, i) => v + EPS >= priorServedByOrigin[i]!);
     const reason = inputReason ?? (feasible ? "feasible" : "insufficient_residual_capacity");
     const marginalTotalCost = feasible ? reallocated!.totalCost + request.units * unitPrice! - projection.totalCost : null;
     return {
