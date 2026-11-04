@@ -68,6 +68,12 @@ node dist/cli.js compute scout --sources all --salad-org YOUR_ORG --salad-gpu-cl
 
 The accompanying `scripts/compute-scout-report.mjs` validates each snapshot digest and compares supplier observations with a previous snapshot. It reports source failures, new/not-seen listings and measured price/availability changes without inferring capacity creation or loss. Runtime scheduling and durable storage belong to the existing VALO Compute Scout service, **not GitHub Actions**. No cloud account login or provider workload is attempted by the collection CLI.
 
+### Task-first model selection (experimental, analysis only)
+
+Compute Scout's marketplace prices alone do **not** identify the right model for a task. The exported `recommendModelsForTask` requires independent, labelled, task-class-specific acceptance benchmarks and fully loaded cost per attempt. It first enforces quality, region, deployment and latency requirements, then ranks qualifying candidates by estimated cost per accepted task. The benchmark must account for model and hardware cost, energy, operations and review, not merely tokens. Local and external API options are evaluated on the same basis. Sparse, missing or incompatible benchmarks produce `abstain`, never an invented recommendation. The output is evidence-labelled advice, not execution authority or proof of actual completed outcomes; model choice, permissions and external effects remain downstream responsibilities.
+
+`evaluateTaskFitVsFixedModel` compares the task-first policy against a fixed-model baseline on identical, independently supplied task outcomes. It reports accepted completions, fully loaded cost and measured joules per accepted completion, including failed attempts. Missing paired observations fail closed. It is an offline replay contract: the included unit tests use synthetic measurements and do not establish savings on live workloads.
+
 ## Benchmark
 
 First-5 tool-call prediction on 10 Toolathlon tasks (real tool inventories from 9 live MCP servers, Jev `typesafe/jev-1.13-20260917` vs DeepSeek V4.1 Flash):
