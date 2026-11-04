@@ -66,6 +66,12 @@ node dist/cli.js compute scout --sources all --salad-org YOUR_ORG --salad-gpu-cl
 
 **Important:** Raw marketplace listings are intentionally separate from `ComputeSnapshot`. GPU offers, provider-wide Akash counts, model token prices, Salad overlapping capacity tiers, and Lambda regional availability booleans cannot safely be equated with calibrated effective compute capacity or unserved demand. Convert to normalized workload-specific CU only after benchmarks, latency/accessibility checks, and independent demand measurements.
 
+### Task-first model selection (experimental, analysis only)
+
+Compute Scout's marketplace prices alone do **not** identify the right model for a task. The exported `recommendModelsForTask` requires independent, labelled, task-class-specific acceptance benchmarks and fully loaded cost per attempt. It first enforces quality, region, deployment and latency requirements, then ranks qualifying candidates by estimated cost per accepted task. Sparse, missing or incompatible benchmarks produce `abstain`. This is advice, not execution authority.
+
+`evaluateTaskFitVsFixedModel` compares task-first selection against a fixed-model baseline on identical, independently supplied outcomes, measuring cost and joules per accepted result including failed attempts. Missing paired observations fail closed. Unit tests use synthetic measurements and do not prove live savings.
+
 The accompanying `scripts/compute-scout-report.mjs` validates each snapshot digest and compares supplier observations with a previous snapshot. It reports source failures, new/not-seen listings and measured price/availability changes without inferring capacity creation or loss. Runtime scheduling and durable storage belong to the existing VALO Compute Scout service, **not GitHub Actions**. No cloud account login or provider workload is attempted by the collection CLI.
 
 ### Dated market signals and compute-as-flexible-load economics
