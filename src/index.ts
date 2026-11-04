@@ -15,3 +15,5 @@ export * from "./typed-decision-eval.js";
 export * from "./routing/routellm-pairwise.js";
 export * from "./compute-intelligence.js";
 export * from "./compute-scout.js";
+export * from "./compute-task-fit.js";
+export * from "./compute-task-fit-eval.js";
