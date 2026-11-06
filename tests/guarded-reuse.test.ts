@@ -5,6 +5,9 @@ import { classifyCanary, digest, reuseDecision } from "../src/guarded-reuse.js";
 const baseline = {
   goal: "classify local synthetic vacancy",
   taskClass: "classification",
+  actorDigest: digest("actor-A"),
+  permissionDigest: digest("permissions-A"),
+  candidateDigest: digest("candidates-A"),
   policyDigest: digest("policy-v1"),
   inputDigest: digest("fixture-v1"),
   output: "category: engineering",
@@ -14,7 +17,7 @@ const baseline = {
 
 test("guarded reuse accepts exact idempotent evidence only", () => {
   assert.deepEqual(reuseDecision(baseline, baseline), { status: "REUSE", output: baseline.output });
-  for (const field of ["goal", "taskClass", "policyDigest", "inputDigest"] as const) {
+  for (const field of ["goal", "taskClass", "actorDigest", "permissionDigest", "candidateDigest", "policyDigest", "inputDigest"] as const) {
     assert.equal(reuseDecision(baseline, { ...baseline, [field]: "changed" }).status, "RECOMPUTE");
   }
   assert.equal(reuseDecision({ ...baseline, outputDigest: "tampered" }, baseline).status, "RECOMPUTE");

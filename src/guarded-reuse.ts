@@ -4,6 +4,9 @@ import { createHash } from "node:crypto";
 export interface GuardedDecision {
   goal: string;
   taskClass: string;
+  actorDigest: string;
+  permissionDigest: string;
+  candidateDigest: string;
   policyDigest: string;
   inputDigest: string;
   outputDigest: string;
@@ -17,11 +20,14 @@ export function digest(value: string): string {
 
 export function reuseDecision(
   previous: GuardedDecision,
-  current: Pick<GuardedDecision, "goal" | "taskClass" | "policyDigest" | "inputDigest">,
+  current: Pick<GuardedDecision, "goal" | "taskClass" | "actorDigest" | "permissionDigest" | "candidateDigest" | "policyDigest" | "inputDigest">,
 ): { status: "REUSE" | "RECOMPUTE"; output?: string } {
   if (previous.authorityRequired || classifyCanary(previous.output) === "BLOCKED_CANARY" ||
       previous.goal !== current.goal ||
       previous.taskClass !== current.taskClass ||
+      previous.actorDigest !== current.actorDigest ||
+      previous.permissionDigest !== current.permissionDigest ||
+      previous.candidateDigest !== current.candidateDigest ||
       previous.policyDigest !== current.policyDigest ||
       previous.inputDigest !== current.inputDigest ||
       digest(previous.output) !== previous.outputDigest) {

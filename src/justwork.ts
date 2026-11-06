@@ -1,3 +1,4 @@
+import { digest, reuseDecision, type GuardedDecision } from "./guarded-reuse.js";
 import { defaultPolicy } from "./manifest.js";
 import { minimumQualifiedPool } from "./qualification.js";
 import { JevRouter } from "./router.js";
@@ -60,6 +61,20 @@ export class JustWorkAdapter {
     this.policy = policy;
     this.ordered = [...capabilities].sort((a, b) => a.id.localeCompare(b.id));
     this.router = new JevRouter(provider, policy);
+  }
+
+  /** Advisory reuse for non-executable analysis only; route() always re-evaluates policy. */
+  evaluateAnalysisReuse(previous: GuardedDecision, input: JustWorkRouteInput) {
+    const active = minimumQualifiedPool(this.ordered, input.task_class);
+    return reuseDecision(previous, {
+      goal: input.request,
+      taskClass: input.task_class ?? "",
+      actorDigest: digest(input.actor ?? ""),
+      permissionDigest: sha256([...(input.actor_permissions ?? [])].sort()),
+      candidateDigest: sha256(active),
+      policyDigest: sha256(this.policy),
+      inputDigest: sha256({ input: input.input ?? null, context: input.context ?? null }),
+    });
   }
 
   async route(input: JustWorkRouteInput): Promise<JustWorkRouteResult> {
