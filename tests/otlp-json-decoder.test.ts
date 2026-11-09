@@ -9,6 +9,7 @@ test('real OTLP JSON envelope becomes priced GenAI usage without prompt text',()
   attributes:[
    {key:'gen_ai.provider.name',value:{stringValue:'openai'}},
    {key:'gen_ai.response.model',value:{stringValue:'test-model'}},
+   {key:'gen_ai.request.id',value:{stringValue:'provider-request-123'}},
    {key:'gen_ai.usage.input_tokens',value:{intValue:'100'}},
    {key:'gen_ai.usage.output_tokens',value:{intValue:'50'}},
    {key:'gen_ai.input.messages',value:{stringValue:'secret prompt'}}
@@ -24,6 +25,8 @@ test('real OTLP JSON envelope becomes priced GenAI usage without prompt text',()
  assert.equal(normalized.usage.length,1);
  assert.equal(normalized.usage[0].amountMinor,200);
  assert.equal(normalized.usage[0].customerId,'customer');
+ assert.equal(normalized.usage[0].correlationId,'provider-request-123');
+ assert.equal(normalized.usage[0].costAuthority,'ESTIMATED');
 });
 test('reject malformed OTLP payload',()=>{
  assert.throws(()=>decodeOtlpJsonTraces(null),/invalid_otlp_payload/);

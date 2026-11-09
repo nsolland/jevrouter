@@ -19,7 +19,8 @@ const scalar=(v:unknown):string|number|boolean|undefined=>{
 };
 const allowed=new Set(['gen_ai.provider.name','gen_ai.system','gen_ai.response.model',
  'gen_ai.request.model','gen_ai.usage.input_tokens','gen_ai.usage.output_tokens',
- 'gen_ai.usage.cache_read.input_tokens','gen_ai.workflow.name']);
+ 'gen_ai.usage.cache_read.input_tokens','gen_ai.workflow.name',
+ 'gen_ai.request.id']);
 function time(n:unknown):string|null{
  if(typeof n!=='string'||!/^[0-9]+$/.test(n))return null;
  try{const ms=BigInt(n)/1000000n;
