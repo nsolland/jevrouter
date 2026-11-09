@@ -3,10 +3,11 @@
  */
 import {createPartnerReportApi} from './partner-report-api.js';
 import {PartnerRegistry} from './partner-registry.js';
+import {PartnerReportHistory} from './partner-report-history.js';
 import {createPartnerSpendImport} from './partner-spend-import.js';
 import type {ReadOnlySpendAdapter} from './partner-pilot.js';
 export function createConfiguredPartnerService(config:{
- registryFile:string;partnerId:string;customerId:string;
+ registryFile:string;partnerId:string;customerId:string;historyFile?:string;
  langfuse?:{baseUrl:string;publicKey:string;secretKey:string;fetcher?:typeof fetch};
  litellm?:{baseUrl:string;apiKey:string;teamId:string;fetcher?:typeof fetch};
  invoices?:ReadOnlySpendAdapter;
@@ -21,7 +22,7 @@ export function createConfiguredPartnerService(config:{
   return createPartnerSpendImport({partnerId,customerId,
    from:from+'T00:00:00Z',to:to+'T23:59:59Z',
    langfuse:config.langfuse,litellm:config.litellm,invoices:config.invoices});
- });
+ },config.historyFile?new PartnerReportHistory(config.historyFile):undefined);
 }
 export async function listenPartnerService(server:ReturnType<typeof createPartnerReportApi>,
  port:number,host='127.0.0.1'){

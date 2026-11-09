@@ -21,6 +21,7 @@ export async function startPartnerServiceFromEnv(env:NodeJS.ProcessEnv=process.e
   publicKey:required(env,'SPEND_LANGFUSE_PUBLIC_KEY'),
   secretKey:required(env,'SPEND_LANGFUSE_SECRET_KEY')}:undefined;
  const server=createConfiguredPartnerService({registryFile,partnerId,customerId,
+  historyFile:env.SPEND_HISTORY_FILE,
   langfuse,litellm});
  const address=await listenPartnerService(server,port);
  return {server,address};

@@ -4,12 +4,14 @@
 import {createServer} from 'node:http';
 import {partnerPortalHtml,partnerPortalJs} from './partner-portal.js';
 import {PartnerRegistry} from './partner-registry.js';
+import {PartnerReportHistory} from './partner-report-history.js';
 import {createPartnerControlHandler} from './partner-control-api.js';
 import {runPartnerPilot,type ReadOnlySpendAdapter} from './partner-pilot.js';
 const validDate=(s:string)=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&
   !Number.isNaN(Date.parse(s))&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;
 export function createPartnerReportApi(registry:PartnerRegistry,
- adapterFor:(partnerId:string,customerId:string,from:string,to:string)=>Promise<ReadOnlySpendAdapter>){
+ adapterFor:(partnerId:string,customerId:string,from:string,to:string)=>Promise<ReadOnlySpendAdapter>,
+ history?:PartnerReportHistory){
  const control=createPartnerControlHandler(registry);
  return createServer(async(req,res)=>{
   const send=(status:number,payload:unknown)=>{
@@ -23,6 +25,16 @@ export function createPartnerReportApi(registry:PartnerRegistry,
      'cache-control':'no-store','x-content-type-options':'nosniff',
      'content-security-policy':"default-src 'none'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'"});
     res.end(js?partnerPortalJs:partnerPortalHtml);return;
+   }
+   const historyMatch=/^\/reports\/([a-zA-Z0-9_-]{1,128})\/history$/.exec(url.pathname);
+   if(req.method==='GET'&&historyMatch){
+    const partnerId=req.headers['x-partner-id'];
+    const auth=req.headers.authorization;
+    if(typeof partnerId!=='string'||!auth?.startsWith('Bearer ')){send(401,{error:'unauthorized'});return;}
+    await registry.customer(partnerId,auth.slice(7),historyMatch[1]);
+    if(!history){send(404,{error:'history_not_configured'});return;}
+    const snapshots=await history.list(partnerId,historyMatch[1]);
+    send(200,{snapshots});return;
    }
    const match=/^\/reports\/([a-zA-Z0-9_-]{1,128})$/.exec(url.pathname);
    if(req.method!=='GET'||!match){await control(req,res);return;}
@@ -48,7 +60,7 @@ export function createPartnerReportApi(registry:PartnerRegistry,
     (adapter.getLastReconciliation as ()=>{unresolved:string[];
       suppressed:{id:string;keptId:string}[]}|null)():null;
    const unresolved=reconciliation?.unresolved.length??null;
-   send(200,{...report,verification:'UNVERIFIED_SOURCE_RECORDS',
+   const payload={...report,verification:'UNVERIFIED_SOURCE_RECORDS',
     causalRoi:'NOT_ESTABLISHED',
     reconciliation:{status:unresolved===null?'NOT_AVAILABLE':
      unresolved>0?'POTENTIAL_OVERLAP':'CORRELATED_ONLY',
@@ -56,7 +68,10 @@ export function createPartnerReportApi(registry:PartnerRegistry,
      suppressedDuplicates:reconciliation?.suppressed.length??null,
      warning:unresolved===null?'Source-level reconciliation not available':
       unresolved>0?'Unlinked usage sources may overlap; totals are not confirmed':
-      'Only explicitly correlated records were deduplicated'}});
+      'Only explicitly correlated records were deduplicated'}};
+   if(history)await history.append({partnerId,customerId:customer.customerId,
+    from,to,currency,report:payload});
+   send(200,payload);
   }catch(e){
    const message=(e as Error).message;
    const status=message==='partner_auth_denied'?401:
