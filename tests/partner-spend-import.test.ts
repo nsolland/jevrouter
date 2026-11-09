@@ -24,6 +24,6 @@ test('two read-only provider APIs flow into branded partner report',async()=>{
  assert.equal(result.product,'Partner AI Spend');
  assert.equal(result.report.spend.usageMinor,50);
  assert.equal(langCalls,1);assert.equal(litCalls,1);
- assert.equal(adapter.getLastReconciliation()?.unresolved.length,2);
+ assert.equal(adapter.getLastReconciliation()?.unresolved.length,1);
  await assert.rejects(adapter.readUsage('partner','b'),/composite_scope_violation/);
 });

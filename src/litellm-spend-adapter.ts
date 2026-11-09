@@ -2,10 +2,10 @@
  * One configured LiteLLM team is bound to one authenticated customer.
  * Never retain request/response, user metadata or API keys.
  */
-import type {MeteredUsage} from './partner-pilot.js';
+import type {CorrelatedUsage} from './cross-source-dedup.js';
 export async function importLiteLLMSpend(args:{baseUrl:string;apiKey:string;teamId:string;
  partnerId:string;customerId:string;from:string;to:string;
- fetcher?:typeof fetch;maxPages?:number}):Promise<{usage:MeteredUsage[];unpriced:string[];pages:number}>{
+ fetcher?:typeof fetch;maxPages?:number}):Promise<{usage:CorrelatedUsage[];unpriced:string[];pages:number}>{
  const base=new URL(args.baseUrl);
  if(base.protocol!=='https:'&&!['localhost','127.0.0.1'].includes(base.hostname))
   throw Error('litellm_https_required');
@@ -17,7 +17,7 @@ export async function importLiteLLMSpend(args:{baseUrl:string;apiKey:string;team
  if(from>=to)throw Error('invalid_litellm_window');
  const maxPages=args.maxPages??100;
  if(!Number.isSafeInteger(maxPages)||maxPages<1)throw Error('invalid_litellm_limit');
- const seen=new Set<string>(),usage:MeteredUsage[]=[],unpriced:string[]=[];
+ const seen=new Set<string>(),usage:CorrelatedUsage[]=[],unpriced:string[]=[];
  for(let page=1;page<=maxPages;page++){
   const url=new URL('/spend/logs/v2',base);
   for(const [k,v] of Object.entries({start_date:from,end_date:to,team_id:args.teamId,
@@ -44,7 +44,8 @@ export async function importLiteLLMSpend(args:{baseUrl:string;apiKey:string;team
    const amount=typeof r.spend==='number'?r.spend:NaN;
    if(!Number.isFinite(amount)||amount<0||!Number.isSafeInteger(Math.round(amount*100)))
     throw Error('invalid_litellm_spend');
-   usage.push({id:'litellm:'+r.request_id,partnerId:args.partnerId,
+   usage.push({id:'litellm:'+r.request_id,correlationId:r.request_id,
+    costAuthority:'BILLED',partnerId:args.partnerId,
     customerId:args.customerId,source:'litellm-spend-v2',
     provider:typeof r.custom_llm_provider==='string'?r.custom_llm_provider:'unknown',
     model:r.model,workflow:'unattributed',occurredAt:r.startTime,

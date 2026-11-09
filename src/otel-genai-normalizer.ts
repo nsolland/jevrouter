@@ -3,6 +3,7 @@
  * Prompt bodies are never ingested.
  */
 import type {MeteredUsage} from './partner-pilot.js';
+import type {CorrelatedUsage} from './cross-source-dedup.js';
 export type GenAiSpan={traceId:string;spanId:string;timestamp:string;
  attributes:Record<string,string|number|boolean|undefined>};
 export type RateCard={provider:string;model:string;currency:string;
@@ -10,8 +11,8 @@ export type RateCard={provider:string;model:string;currency:string;
 const count=(v:unknown)=>typeof v==='number'&&Number.isSafeInteger(v)&&v>=0?v:null;
 export function normalizeGenAiSpans(args:{partnerId:string;customerId:string;
  spans:readonly GenAiSpan[];rates:readonly RateCard[];currency:string}):
- {usage:MeteredUsage[];unpriced:string[];skipped:string[]} {
- const usage:MeteredUsage[]=[],unpriced:string[]=[],skipped:string[]=[];
+ {usage:CorrelatedUsage[];unpriced:string[];skipped:string[]} {
+ const usage:CorrelatedUsage[]=[],unpriced:string[]=[],skipped:string[]=[];
  const seen=new Set<string>();
  for(const span of args.spans){
   const key=span.traceId+':'+span.spanId;
@@ -37,7 +38,9 @@ export function normalizeGenAiSpans(args:{partnerId:string;customerId:string;
   if(!Number.isSafeInteger(amount)||amount<0)throw Error('invalid_cost');
   usage.push({id:key,partnerId:args.partnerId,customerId:args.customerId,
    source:'otel-genai-span',provider,model,workflow:String(a['gen_ai.workflow.name']??'unattributed'),
-   occurredAt:span.timestamp,amountMinor:amount,currency:args.currency});
+   occurredAt:span.timestamp,amountMinor:amount,currency:args.currency,
+   ...(typeof a['gen_ai.request.id']==='string'&&a['gen_ai.request.id']?
+    {correlationId:a['gen_ai.request.id'] as string}:{}),costAuthority:'ESTIMATED'});
  }
  return {usage,unpriced,skipped};
 }
