@@ -58,10 +58,10 @@ export class PartnerRegistry{
   return {partnerId,role:p.role};
  }
  async addCustomer(partnerId:string,token:string,customer:PartnerCustomer){
-  await this.authenticate(partnerId,token);
   if(customer.partnerId!==partnerId||!customer.customerId)
    throw Error('customer_scope_denied');
   return this.exclusive(async()=>{
+  await this.authenticate(partnerId,token);
   const r=await this.load();
   if(r.customers.some(c=>c.partnerId===partnerId&&c.customerId===customer.customerId))
    throw Error('customer_exists');
