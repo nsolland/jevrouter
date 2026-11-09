@@ -24,6 +24,34 @@ export function createConfiguredPartnerService(config:{
    langfuse:config.langfuse,litellm:config.litellm,invoices:config.invoices});
  },config.historyFile?new PartnerReportHistory(config.historyFile):undefined);
 }
+/** Multi-partner white-label runtime. Each exact tenant binding has its own sources.
+ * Customer creation never grants access to another tenant's upstream credentials.
+ */
+export function createMultiPartnerService(config:{
+ registryFile:string;historyFile?:string;
+ tenants:Array<{partnerId:string;customerId:string;
+  langfuse?:{baseUrl:string;publicKey:string;secretKey:string;fetcher?:typeof fetch};
+  litellm?:{baseUrl:string;apiKey:string;teamId:string;fetcher?:typeof fetch};
+  invoices?:ReadOnlySpendAdapter}>;
+}){
+ const bindings=new Map<string,(typeof config.tenants)[number]>();
+ for(const tenant of config.tenants){
+  if(!tenant.partnerId||!tenant.customerId||
+   (!tenant.langfuse&&!tenant.litellm&&!tenant.invoices))throw Error('invalid_tenant_binding');
+  const key=JSON.stringify([tenant.partnerId,tenant.customerId]);
+  if(bindings.has(key))throw Error('duplicate_tenant_binding');
+  bindings.set(key,tenant);
+ }
+ if(!bindings.size)throw Error('no_tenant_bindings');
+ return createPartnerReportApi(new PartnerRegistry(config.registryFile),
+  async(partnerId,customerId,from,to)=>{
+   const tenant=bindings.get(JSON.stringify([partnerId,customerId]));
+   if(!tenant)throw Error('service_scope_denied');
+   return createPartnerSpendImport({partnerId,customerId,
+    from:from+'T00:00:00Z',to:to+'T23:59:59Z',
+    langfuse:tenant.langfuse,litellm:tenant.litellm,invoices:tenant.invoices});
+  },config.historyFile?new PartnerReportHistory(config.historyFile):undefined);
+}
 export async function listenPartnerService(server:ReturnType<typeof createPartnerReportApi>,
  port:number,host='127.0.0.1'){
  if(host!=='127.0.0.1'&&host!=='::1')throw Error('public_bind_forbidden');
