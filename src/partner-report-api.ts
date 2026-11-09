@@ -2,6 +2,7 @@
  * It does not expose upstream credentials or raw prompt content.
  */
 import {createServer} from 'node:http';
+import {partnerPortalHtml,partnerPortalJs} from './partner-portal.js';
 import {PartnerRegistry} from './partner-registry.js';
 import {runPartnerPilot,type ReadOnlySpendAdapter} from './partner-pilot.js';
 export function createPartnerReportApi(registry:PartnerRegistry,
@@ -12,6 +13,13 @@ export function createPartnerReportApi(registry:PartnerRegistry,
     'x-content-type-options':'nosniff'});res.end(JSON.stringify(payload));};
   try{
    const url=new URL(req.url??'/', 'http://localhost');
+   if(req.method==='GET'&&(url.pathname==='/portal'||url.pathname==='/portal.js')){
+    const js=url.pathname==='/portal.js';
+    res.writeHead(200,{'content-type':js?'text/javascript; charset=utf-8':'text/html; charset=utf-8',
+     'cache-control':'no-store','x-content-type-options':'nosniff',
+     'content-security-policy':"default-src 'none'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'"});
+    res.end(js?partnerPortalJs:partnerPortalHtml);return;
+   }
    const match=/^\/reports\/([a-zA-Z0-9_-]{1,128})$/.exec(url.pathname);
    if(req.method!=='GET'||!match){send(404,{error:'not_found'});return;}
    const partnerId=req.headers['x-partner-id'];
