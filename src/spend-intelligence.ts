@@ -55,7 +55,7 @@ export function summarizeSpend(records: SpendRecord[], tenantId: string, currenc
     if (!r.id || ids.has(r.id)) throw new Error('duplicate_or_missing_record_id');
     ids.add(r.id);
     if (!r.provider || !r.department || !r.useCase) throw new Error('missing_attribution');
-    if (!/^\\d{4}-\\d{2}-\\d{2}/.test(r.occurredAt) || !Number.isFinite(Date.parse(r.occurredAt)))
+    if (!/^\d{4}-\d{2}-\d{2}/.test(r.occurredAt) || !Number.isFinite(Date.parse(r.occurredAt)))
       throw new Error('invalid_date');
     if (r.amountMinor > Number.MAX_SAFE_INTEGER-result.totalMinor) throw new Error('amount_overflow');
     result.totalMinor += r.amountMinor; result.recordCount++;
