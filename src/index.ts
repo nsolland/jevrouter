@@ -35,3 +35,5 @@ export * from "./provider-reconciliation.js";
 export * from "./langfuse-v2-adapter.js";
 
 export * from "./cross-source-dedup.js";
+
+export * from "./litellm-spend-adapter.js";
