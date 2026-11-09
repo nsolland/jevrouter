@@ -15,6 +15,7 @@ test('same-origin partner portal serves UI and script with restrictive CSP',asyn
   const html=await fetch(base+'/portal');
   assert.equal(html.status,200);
   assert.match(html.headers.get('content-security-policy')??'',/default-src 'none'/);
+  assert.match(html.headers.get('content-security-policy')??'',/style-src 'sha256-/);
   const markup=await html.text();
   assert.match(markup,/AI Value & Spend Intelligence/);
   assert.match(markup,/Create customer/);

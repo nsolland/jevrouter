@@ -2,11 +2,14 @@
  * It does not expose upstream credentials or raw prompt content.
  */
 import {createServer} from 'node:http';
+import {createHash} from 'node:crypto';
 import {partnerPortalHtml,partnerPortalJs} from './partner-portal.js';
 import {PartnerRegistry} from './partner-registry.js';
 import {PartnerReportHistory} from './partner-report-history.js';
 import {createPartnerControlHandler} from './partner-control-api.js';
 import {runPartnerPilot,type ReadOnlySpendAdapter} from './partner-pilot.js';
+const portalStyle=partnerPortalHtml.match(/<style>([\s\S]*?)<\/style>/)?.[1]??'';
+const portalStyleHash=createHash('sha256').update(portalStyle).digest('base64');
 const validDate=(s:string)=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&
   !Number.isNaN(Date.parse(s))&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;
 export function createPartnerReportApi(registry:PartnerRegistry,
@@ -23,7 +26,7 @@ export function createPartnerReportApi(registry:PartnerRegistry,
     const js=url.pathname==='/portal.js';
     res.writeHead(200,{'content-type':js?'text/javascript; charset=utf-8':'text/html; charset=utf-8',
      'cache-control':'no-store','x-content-type-options':'nosniff',
-     'content-security-policy':"default-src 'none'; script-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'"});
+     'content-security-policy':"default-src 'none'; script-src 'self'; style-src 'sha256-"+portalStyleHash+"'; connect-src 'self'; base-uri 'none'; form-action 'none'"});
     res.end(js?partnerPortalJs:partnerPortalHtml);return;
    }
    const historyMatch=/^\/reports\/([a-zA-Z0-9_-]{1,128})\/history$/.exec(url.pathname);
