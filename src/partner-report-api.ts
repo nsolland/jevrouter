@@ -6,6 +6,8 @@ import {partnerPortalHtml,partnerPortalJs} from './partner-portal.js';
 import {PartnerRegistry} from './partner-registry.js';
 import {createPartnerControlHandler} from './partner-control-api.js';
 import {runPartnerPilot,type ReadOnlySpendAdapter} from './partner-pilot.js';
+const validDate=(s:string)=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&
+  !Number.isNaN(Date.parse(s))&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;
 export function createPartnerReportApi(registry:PartnerRegistry,
  adapterFor:(partnerId:string,customerId:string,from:string,to:string)=>Promise<ReadOnlySpendAdapter>){
  const control=createPartnerControlHandler(registry);
@@ -34,7 +36,7 @@ export function createPartnerReportApi(registry:PartnerRegistry,
    const from=url.searchParams.get('from')??'';
    const to=url.searchParams.get('to')??'';
    const currency=url.searchParams.get('currency')??'';
-   if(!/^\d{4}-\d{2}-\d{2}$/.test(from)||!/^\d{4}-\d{2}-\d{2}$/.test(to)||
+   if(!validDate(from)||!validDate(to)||
     from>to||!/^[A-Z]{3}$/.test(currency)){
     send(400,{error:'invalid_report_window'});return;
    }

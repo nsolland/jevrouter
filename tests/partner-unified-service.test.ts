@@ -29,6 +29,8 @@ test('one partner service handles customer administration and reports',async()=>
   assert.equal(report.status,200);
   const payload=await report.json();
   assert.equal(payload.product,'Brand');
+  const invalidDate=await fetch(base+'/reports/c?from=2026-02-30&to=2026-03-01&currency=USD',{headers});
+  assert.equal(invalidDate.status,400);
   const forbidden=await fetch(base+'/customers/c',
    {headers:{...headers,authorization:'Bearer wrong'}});
   assert.equal(forbidden.status,401);
