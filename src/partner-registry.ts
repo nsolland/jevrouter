@@ -10,6 +10,17 @@ type Registry={version:1;partners:PartnerBrand[];customers:PartnerCustomer[];pri
 const empty=():Registry=>({version:1,partners:[],customers:[],principals:[]});
 const digest=(token:string,salt:string)=>scryptSync(token,salt,32).toString('hex');
 export class PartnerRegistry{
+ private static pending=new Map<string,Promise<void>>();
+ private async exclusive<T>(work:()=>Promise<T>):Promise<T>{
+  const prior=PartnerRegistry.pending.get(this.file)??Promise.resolve();
+  let release!:()=>void;
+  const gate=new Promise<void>(resolve=>{release=resolve;});
+  const next=prior.then(()=>gate);
+  PartnerRegistry.pending.set(this.file,next);
+  await prior;
+  try{return await work();}finally{release();
+   if(PartnerRegistry.pending.get(this.file)===next)PartnerRegistry.pending.delete(this.file);}
+ }
  constructor(private readonly file:string){}
  private async load():Promise<Registry>{
   try{const r=JSON.parse(await readFile(this.file,'utf8')) as Registry;
@@ -26,6 +37,7 @@ export class PartnerRegistry{
  }
  async provision(brand:PartnerBrand,token:string){
   if(!brand.partnerId||token.length<32)throw Error('invalid_partner_credentials');
+  return this.exclusive(async()=>{
   const r=await this.load();
   if(r.partners.some(x=>x.partnerId===brand.partnerId))throw Error('partner_exists');
   const salt=randomBytes(16).toString('hex');
@@ -33,6 +45,7 @@ export class PartnerRegistry{
   r.principals.push({partnerId:brand.partnerId,tokenSalt:salt,
    tokenHash:digest(token,salt),role:'owner'});
   await this.save(r);
+  });
  }
  async authenticate(partnerId:string,token:string){
   const r=await this.load();
@@ -48,10 +61,24 @@ export class PartnerRegistry{
   await this.authenticate(partnerId,token);
   if(customer.partnerId!==partnerId||!customer.customerId)
    throw Error('customer_scope_denied');
+  return this.exclusive(async()=>{
   const r=await this.load();
   if(r.customers.some(c=>c.partnerId===partnerId&&c.customerId===customer.customerId))
    throw Error('customer_exists');
   r.customers.push(customer);await this.save(r);
+  });
+ }
+ async rotateToken(partnerId:string,oldToken:string,newToken:string){
+  if(newToken.length<32)throw Error('invalid_partner_credentials');
+  return this.exclusive(async()=>{
+   await this.authenticate(partnerId,oldToken);
+   const r=await this.load();
+   const principal=r.principals.find(p=>p.partnerId===partnerId);
+   if(!principal)throw Error('partner_auth_denied');
+   principal.tokenSalt=randomBytes(16).toString('hex');
+   principal.tokenHash=digest(newToken,principal.tokenSalt);
+   await this.save(r);
+  });
  }
  async customer(partnerId:string,token:string,customerId:string){
   await this.authenticate(partnerId,token);
