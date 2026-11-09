@@ -57,3 +57,5 @@ export * from "./partner-portal.js";
 export * from "./partner-service.js";
 
 export * from "./invoice-document-adapter.js";
+
+export * from "./promptfoo-results-json.js";
