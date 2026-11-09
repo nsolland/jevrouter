@@ -27,3 +27,4 @@ export * from "./partner-pilot.js";
 export * from "./spend-snapshot-adapter.js";
 export * from "./evidence-route-evaluation.js";
 export * from "./otel-genai-normalizer.js";
+export * from "./paginated-observation-adapter.js";
