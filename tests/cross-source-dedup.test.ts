@@ -30,3 +30,9 @@ test('conflicting currencies cannot be silently consolidated',()=>{
  record('otel','1','req1'),{...record('langfuse','2','req1'),currency:'NOK'}]}),
  /correlated_currency_conflict/);
 });
+
+test('reused correlation within a single source cannot suppress charges',()=>{
+ assert.throws(()=>consolidateUsage({partnerId:'p',customerId:'c',records:[
+ record('litellm','request-1','shared'),record('litellm','request-2','shared')]}),
+ /correlation_reused_within_source/);
+});

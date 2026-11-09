@@ -25,6 +25,13 @@ export function consolidateUsage(args:{partnerId:string;customerId:string;
  }
  const usage:CorrelatedUsage[]=[],suppressed:Consolidation['suppressed']=[];
  for(const entries of groups.values()){
+  // A repeated correlation within one source is not proof of duplicate billing.
+  // Fail closed instead of silently discarding a second charge.
+  const sourceCounts=new Set<string>();
+  for(const entry of entries){
+   if(sourceCounts.has(entry.source))throw Error('correlation_reused_within_source');
+   sourceCounts.add(entry.source);
+  }
   const currency=new Set(entries.map(x=>x.currency));
   if(currency.size!==1)throw Error('correlated_currency_conflict');
   const ordered=[...entries].sort((a,b)=>{
