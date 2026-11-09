@@ -59,3 +59,5 @@ export * from "./partner-service.js";
 export * from "./invoice-document-adapter.js";
 
 export * from "./promptfoo-results-json.js";
+
+export * from "./partner-operator.js";
