@@ -29,3 +29,4 @@ export * from "./evidence-route-evaluation.js";
 export * from "./otel-genai-normalizer.js";
 export * from "./paginated-observation-adapter.js";
 export * from "./matched-task-evaluation.js";
+export * from "./otlp-json-decoder.js";
