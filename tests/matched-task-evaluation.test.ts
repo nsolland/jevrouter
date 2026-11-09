@@ -10,7 +10,7 @@ test('matched baseline and candidate track human review and quality',()=>{
  ],{partnerId:'p',customerId:'c'});
  assert.equal(r.totalCostDeltaMinor,-40);
  assert.equal(r.totalReviewDeltaMinutes,-1);
- assert.equal(r.meanQualityDelta,.1);
+ assert.ok(Math.abs((r.meanQualityDelta??0)-.1)<1e-10);
  assert.equal(r.causalStatus,'NOT_ESTABLISHED');
 });
 test('reject cross-customer task measurements',()=>{
