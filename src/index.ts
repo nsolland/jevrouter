@@ -53,3 +53,5 @@ export * from "./partner-control-api.js";
 export * from "./partner-report-api.js";
 
 export * from "./partner-portal.js";
+
+export * from "./partner-service.js";

@@ -6,7 +6,7 @@ import {partnerPortalHtml,partnerPortalJs} from './partner-portal.js';
 import {PartnerRegistry} from './partner-registry.js';
 import {runPartnerPilot,type ReadOnlySpendAdapter} from './partner-pilot.js';
 export function createPartnerReportApi(registry:PartnerRegistry,
- adapterFor:(partnerId:string,customerId:string)=>Promise<ReadOnlySpendAdapter>){
+ adapterFor:(partnerId:string,customerId:string,from:string,to:string)=>Promise<ReadOnlySpendAdapter>){
  return createServer(async(req,res)=>{
   const send=(status:number,payload:unknown)=>{
    res.writeHead(status,{'content-type':'application/json','cache-control':'no-store',
@@ -36,7 +36,7 @@ export function createPartnerReportApi(registry:PartnerRegistry,
     from>to||!/^[A-Z]{3}$/.test(currency)){
     send(400,{error:'invalid_report_window'});return;
    }
-   const adapter=await adapterFor(partnerId,customer.customerId);
+   const adapter=await adapterFor(partnerId,customer.customerId,from,to);
    const report=await runPartnerPilot({brand,customer,adapter,
     periodStart:from,periodEnd:to,currency});
    send(200,{...report,verification:'UNVERIFIED_SOURCE_RECORDS',
