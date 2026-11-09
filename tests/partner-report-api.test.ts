@@ -33,6 +33,7 @@ test('partner branded report HTTP endpoint isolates customers and excludes secre
   assert.equal(payload.product,'Partner Intelligence');
   assert.equal(payload.report.spend.usageMinor,100);
   assert.equal(payload.report.roi.status,'NOT_ESTABLISHED');
+  assert.equal(payload.reconciliation.status,'NOT_AVAILABLE');
   assert.equal(JSON.stringify(payload).includes(token),false);
   assert.equal((await fetch(url,{headers:headers('q',other)})).status,404);
   assert.equal((await fetch(url,{headers:headers('p','bad')})).status,401);

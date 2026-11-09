@@ -39,8 +39,20 @@ export function createPartnerReportApi(registry:PartnerRegistry,
    const adapter=await adapterFor(partnerId,customer.customerId,from,to);
    const report=await runPartnerPilot({brand,customer,adapter,
     periodStart:from,periodEnd:to,currency});
+   const reconciliation='getLastReconciliation' in adapter &&
+    typeof adapter.getLastReconciliation==='function'?
+    (adapter.getLastReconciliation as ()=>{unresolved:string[];
+      suppressed:{id:string;keptId:string}[]}|null)():null;
+   const unresolved=reconciliation?.unresolved.length??null;
    send(200,{...report,verification:'UNVERIFIED_SOURCE_RECORDS',
-    causalRoi:'NOT_ESTABLISHED'});
+    causalRoi:'NOT_ESTABLISHED',
+    reconciliation:{status:unresolved===null?'NOT_AVAILABLE':
+     unresolved>0?'POTENTIAL_OVERLAP':'CORRELATED_ONLY',
+     unresolvedSourceRecords:unresolved,
+     suppressedDuplicates:reconciliation?.suppressed.length??null,
+     warning:unresolved===null?'Source-level reconciliation not available':
+      unresolved>0?'Unlinked usage sources may overlap; totals are not confirmed':
+      'Only explicitly correlated records were deduplicated'}});
   }catch(e){
    const message=(e as Error).message;
    const status=message==='partner_auth_denied'?401:
