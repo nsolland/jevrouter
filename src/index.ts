@@ -17,3 +17,8 @@ export * from "./compute-intelligence.js";
 export * from "./compute-scout.js";
 export * from "./compute-task-fit.js";
 export * from "./compute-task-fit-eval.js";
+export * from "./spend-intelligence.js";
+export * from "./prompt-intelligence.js";
+export * from "./pre-prompt-intelligence.js";
+export * from "./intelligent-prompt-routing.js";
+export * from "./spend-assessment.js";
