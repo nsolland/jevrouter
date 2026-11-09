@@ -18,6 +18,7 @@ test('same-origin partner portal serves UI and script with restrictive CSP',asyn
   const markup=await html.text();
   assert.match(markup,/AI Value & Spend Intelligence/);
   assert.match(markup,/Create customer/);
+  assert.match(markup,/Report history/);
   assert.match(markup,/Unreconciled|Evidence and full report/);
   const js=await fetch(base+'/portal.js');
   assert.equal(js.status,200);
@@ -25,5 +26,7 @@ test('same-origin partner portal serves UI and script with restrictive CSP',asyn
   assert.match(script,/authorization:'Bearer '/);
   assert.match(script,/fetch\('\/customers'/);
   assert.match(script,/replaceChildren/);
+  assert.match(script,/load-history/);
+  assert.match(script,/\/history/);
  }finally{await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));}
 });

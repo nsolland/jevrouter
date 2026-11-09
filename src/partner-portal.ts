@@ -27,8 +27,21 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere}.warning{color:#8b3500;font-weig
 <div id="summary" class="grid" aria-live="polite"></div>
 <p id="reconciliation" class="warning" role="status"></p>
 <details><summary>Evidence and full report</summary><pre id="result"></pre></details></section>
+<section><h2>Report history</h2><button type="button" id="load-history">Load saved reports</button><p id="history-status" role="status"></p><div id="history"></div></section>
 </main><script src="/portal.js"></script></body></html>`;
 export const partnerPortalJs = `
+document.getElementById('load-history').addEventListener('click',async()=>{
+ const status=document.getElementById('history-status'),container=document.getElementById('history');
+ status.textContent='Loading';container.replaceChildren();
+ try{const response=await fetch('/reports/'+encodeURIComponent(get('customer'))+'/history',{headers:headers(),cache:'no-store'});
+ const data=await response.json();
+ if(!response.ok){status.textContent='History error: '+(data.error??response.status);return;}
+ status.textContent=data.snapshots.length+' saved reports';
+ for(const snapshot of data.snapshots){const item=document.createElement('details');const title=document.createElement('summary');
+ title.textContent=snapshot.createdAt+' | '+snapshot.from+' – '+snapshot.to+' | '+snapshot.currency;
+ const details=document.createElement('pre');details.textContent=JSON.stringify(snapshot.report,null,2);item.append(title,details);container.append(item);}
+ }catch{status.textContent='History request failed';}
+});
 const get=id=>document.getElementById(id).value;
 const headers=()=>({'x-partner-id':get('partner'),authorization:'Bearer '+get('token')});
 const money=(n,c)=>Number.isSafeInteger(n)?new Intl.NumberFormat(undefined,{style:'currency',currency:c}).format(n/100):'Not available';
