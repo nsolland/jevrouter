@@ -47,3 +47,5 @@ export * from "./period-tco.js";
 export * from "./promptfoo-evaluation-import.js";
 
 export * from "./partner-registry.js";
+
+export * from "./partner-control-api.js";
