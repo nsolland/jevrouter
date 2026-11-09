@@ -55,3 +55,5 @@ export * from "./partner-report-api.js";
 export * from "./partner-portal.js";
 
 export * from "./partner-service.js";
+
+export * from "./invoice-document-adapter.js";
