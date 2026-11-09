@@ -33,3 +33,5 @@ export * from "./otlp-json-decoder.js";
 export * from "./provider-reconciliation.js";
 
 export * from "./langfuse-v2-adapter.js";
+
+export * from "./cross-source-dedup.js";
