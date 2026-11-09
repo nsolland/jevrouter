@@ -17,8 +17,10 @@ export function createPartnerSpendImport(args:{
   sources.push({id:'langfuse',
    async readUsage(p,c){
     if(p!==args.partnerId||c!==args.customerId)throw Error('import_scope_denied');
-    return (await importLangfuseObservations({...cfg,partnerId:p,customerId:c,
-     from:args.from,to:args.to})).usage;
+    const result=await importLangfuseObservations({...cfg,partnerId:p,customerId:c,
+     from:args.from,to:args.to});
+    if(result.unpriced.length)throw Error('langfuse_unpriced_observations');
+    return result.usage;
    },async readInvoices(){return [];}});
  }
  if(args.litellm){

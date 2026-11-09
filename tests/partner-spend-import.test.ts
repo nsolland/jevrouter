@@ -27,3 +27,15 @@ test('two read-only provider APIs flow into branded partner report',async()=>{
  assert.equal(adapter.getLastReconciliation()?.unresolved.length,1);
  await assert.rejects(adapter.readUsage('partner','b'),/composite_scope_violation/);
 });
+
+test('partner reporting fails closed on unpriced Langfuse generations',async()=>{
+ const adapter=createPartnerSpendImport({partnerId:'partner',customerId:'a',
+  from:'2026-11-01T00:00:00Z',to:'2026-11-30T23:59:59Z',
+  langfuse:{baseUrl:'https://cloud.langfuse.com',publicKey:'pk',secretKey:'sk',
+   fetcher:(async()=>new Response(JSON.stringify({data:[{id:'missing',
+    type:'GENERATION',startTime:'2026-11-09T10:00:00Z',
+    model:'gpt-test',totalCost:null}],meta:{cursor:null}}))) as typeof fetch}});
+ await assert.rejects(runPartnerPilot({brand,customer,adapter,
+  periodStart:'2026-11-01',periodEnd:'2026-11-30',currency:'USD'}),
+  /langfuse_unpriced_observations/);
+});
