@@ -15,9 +15,15 @@ test('same-origin partner portal serves UI and script with restrictive CSP',asyn
   const html=await fetch(base+'/portal');
   assert.equal(html.status,200);
   assert.match(html.headers.get('content-security-policy')??'',/default-src 'none'/);
-  assert.match(await html.text(),/AI Value & Spend Intelligence/);
+  const markup=await html.text();
+  assert.match(markup,/AI Value & Spend Intelligence/);
+  assert.match(markup,/Create customer/);
+  assert.match(markup,/Unreconciled|Evidence and full report/);
   const js=await fetch(base+'/portal.js');
   assert.equal(js.status,200);
-  assert.match(await js.text(),/authorization:'Bearer '/);
+  const script=await js.text();
+  assert.match(script,/authorization:'Bearer '/);
+  assert.match(script,/fetch\('\/customers'/);
+  assert.match(script,/replaceChildren/);
  }finally{await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));}
 });
