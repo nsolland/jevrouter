@@ -49,3 +49,5 @@ export * from "./promptfoo-evaluation-import.js";
 export * from "./partner-registry.js";
 
 export * from "./partner-control-api.js";
+
+export * from "./partner-report-api.js";
