@@ -4,9 +4,11 @@
 import {createServer} from 'node:http';
 import {partnerPortalHtml,partnerPortalJs} from './partner-portal.js';
 import {PartnerRegistry} from './partner-registry.js';
+import {createPartnerControlHandler} from './partner-control-api.js';
 import {runPartnerPilot,type ReadOnlySpendAdapter} from './partner-pilot.js';
 export function createPartnerReportApi(registry:PartnerRegistry,
  adapterFor:(partnerId:string,customerId:string,from:string,to:string)=>Promise<ReadOnlySpendAdapter>){
+ const control=createPartnerControlHandler(registry);
  return createServer(async(req,res)=>{
   const send=(status:number,payload:unknown)=>{
    res.writeHead(status,{'content-type':'application/json','cache-control':'no-store',
@@ -21,7 +23,7 @@ export function createPartnerReportApi(registry:PartnerRegistry,
     res.end(js?partnerPortalJs:partnerPortalHtml);return;
    }
    const match=/^\/reports\/([a-zA-Z0-9_-]{1,128})$/.exec(url.pathname);
-   if(req.method!=='GET'||!match){send(404,{error:'not_found'});return;}
+   if(req.method!=='GET'||!match){await control(req,res);return;}
    const partnerId=req.headers['x-partner-id'];
    const auth=req.headers.authorization;
    if(typeof partnerId!=='string'||!auth?.startsWith('Bearer ')){

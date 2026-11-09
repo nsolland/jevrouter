@@ -16,8 +16,8 @@ const body=async(req:IncomingMessage)=>{
  }
  return JSON.parse(text) as unknown;
 };
-export function createPartnerControlApi(registry:PartnerRegistry){
- return createServer(async(req,res)=>{
+export function createPartnerControlHandler(registry:PartnerRegistry){
+ return async(req:IncomingMessage,res:ServerResponse)=>{
   try{
    const path=new URL(req.url??'/', 'http://localhost').pathname;
    if(path==='/health'&&req.method==='GET'){
@@ -61,5 +61,8 @@ export function createPartnerControlApi(registry:PartnerRegistry){
     message==='body_too_large'||message==='invalid_customer'?400:500;
    send(res,status,{error:status===500?'internal_error':message});
   }
- });
+ };
+}
+export function createPartnerControlApi(registry:PartnerRegistry){
+ return createServer(createPartnerControlHandler(registry));
 }
