@@ -43,3 +43,5 @@ export * from "./composite-spend-adapter.js";
 export * from "./partner-spend-import.js";
 
 export * from "./period-tco.js";
+
+export * from "./promptfoo-evaluation-import.js";
