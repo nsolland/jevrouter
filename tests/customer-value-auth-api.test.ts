@@ -17,7 +17,9 @@ test('customer-only credential owns rubric, partner token cannot change it',asyn
  const file=join(dir,'value.json'),store=new CustomerValueStore(file);
  await store.provision('p','c',customerToken);
  const server=createPartnerReportApi(registry,async()=>{throw Error('unused')},
-  undefined,undefined,undefined,undefined,undefined,store);
+  undefined,undefined,undefined,async()=>[{id:'1',tenantId:'c',provider:'p',amountMinor:100,
+   currency:'USD',occurredAt:'2026-11-10T12:00:00Z',actorId:'a',department:'d',
+   useCase:'work',model:'m'}],undefined,store);
  await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
  try{
   const addr=server.address();if(!addr||typeof addr==='string')throw Error('no_port');
@@ -49,12 +51,17 @@ test('customer-only credential owns rubric, partner token cannot change it',asyn
    useCase:'work',model:'m'}],'c')[0];
   const decisionUrl=url.replace('value-rubric','value-decisions');
   const decisionBody=JSON.stringify({signalId:signal.id,decision:'REJECT',
-   rationale:'Customer prioritizes quality over lower spend',expectedRevision:1});
+   rationale:'Customer prioritizes quality over lower spend',expectedRevision:1,
+   from:'2026-11-01',to:'2026-11-30'});
   assert.equal((await fetch(decisionUrl,{method:'POST',headers:{...headers,
    'content-type':'application/json'},body:decisionBody})).status,200);
   assert.equal((await fetch(decisionUrl,{method:'POST',headers:{'x-partner-id':'p',
    'x-customer-value-token':partnerToken,'content-type':'application/json'},
    body:decisionBody})).status,401);
+  const invalid=await fetch(decisionUrl,{method:'POST',headers:{...headers,
+   'content-type':'application/json'},body:JSON.stringify({...JSON.parse(decisionBody),
+   signalId:'opportunity-'+'0'.repeat(24)})});
+  assert.equal(invalid.status,422);
   const decisions=await fetch(decisionUrl,{headers});
   assert.equal(((await decisions.json()) as {items:Array<{decision:string}>}).items[0].decision,'REJECT');
   assert.equal((await stat(file)).mode&0o077,0);

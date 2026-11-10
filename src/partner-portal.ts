@@ -140,7 +140,7 @@ document.getElementById('save-decision').addEventListener('click',async()=>{
  try{const response=await fetch('/customers/'+encodeURIComponent(get('customer'))+'/value-decisions',
  {method:'POST',headers:{...rubricHeaders(),'content-type':'application/json'},
  body:JSON.stringify({signalId:get('decision-signal'),decision:get('decision-choice'),
- rationale:get('decision-reason'),expectedRevision:rubricRevision})});
+ rationale:get('decision-reason'),expectedRevision:rubricRevision,from:get('from'),to:get('to')})});
  const data=await response.json();status.textContent=response.ok?'Customer decision recorded':data.error;
  }catch{status.textContent='Decision not recorded';}
 });

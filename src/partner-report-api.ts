@@ -55,7 +55,16 @@ export function createPartnerReportApi(registry:PartnerRegistry,
     let raw='';for await(const chunk of req){raw+=chunk.toString();
      if(raw.length>8192){send(413,{error:'decision_too_large'});return;}}
     const body=JSON.parse(raw) as {signalId:string;decision:'ACCEPT'|'REJECT'|'NEEDS_EVIDENCE';
-     rationale:string;expectedRevision:number};
+     rationale:string;expectedRevision:number;from:string;to:string};
+    if(!validDate(body.from)||!validDate(body.to)||body.from>body.to){
+     send(400,{error:'invalid_report_window'});return;}
+    // Authenticate the customer before any provider call or decision lookup.
+    await customerValueStore.readAuthorized(partnerId,valueControl[1],token);
+    if(!attributedUsageFor){send(422,{error:'actor_attribution_not_configured'});return;}
+    const records=await attributedUsageFor(partnerId,valueControl[1],body.from,body.to);
+    const hypotheses=proposeValueHypotheses(records,valueControl[1]);
+    if(!hypotheses.some(h=>h.id===body.signalId)){
+     send(422,{error:'value_hypothesis_not_found'});return;}
     const result=await customerValueStore.decideSignal(partnerId,valueControl[1],token,
      body.signalId,body.decision,body.rationale,body.expectedRevision);
     send(200,{decision:result});return;
@@ -139,7 +148,8 @@ export function createPartnerReportApi(registry:PartnerRegistry,
     send(200,{authority:'ADVISORY_ONLY',rubricStatus:'CUSTOMER_RUBRIC_SUPPLIED',hypotheses,
      evaluation:evaluateCustomerValue({partnerId,customerId:valueMatch[1],rubric,
       records,signals:hypotheses}),
-     customerDecisions:customerValueStore?await customerValueStore.listDecisions(partnerId,valueMatch[1]):[]});return;
+     customerDecisions:customerValueStore?(await customerValueStore.listDecisions(partnerId,valueMatch[1]))
+      .filter(d=>hypotheses.some(h=>h.id===d.signalId)):[]});return;
    }
    const historyMatch=/^\/reports\/([a-zA-Z0-9_-]{1,128})\/history$/.exec(url.pathname);
    if(req.method==='GET'&&historyMatch){
