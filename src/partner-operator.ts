@@ -2,7 +2,8 @@
  * Environment variables are inherited from the operator's secret manager.
  */
 import {randomBytes} from 'node:crypto';
-import {readFile,stat} from 'node:fs/promises';
+import {readFile,stat,mkdir,writeFile,rename,chmod,rmdir} from 'node:fs/promises';
+import {dirname} from 'node:path';
 import {PartnerRegistry} from './partner-registry.js';
 import {createConfiguredPartnerService,createMultiPartnerService,listenPartnerService} from './partner-service.js';
 const required=(env:NodeJS.ProcessEnv,key:string)=>{
@@ -87,8 +88,16 @@ export async function configurePartnerSourceFromEnv(env:NodeJS.ProcessEnv=proces
   teamId:required(env,'SPEND_SOURCE_TEAM_ID')}:{
   baseUrl,publicKey:required(env,'SPEND_SOURCE_PUBLIC_KEY'),
   secretKey:required(env,'SPEND_SOURCE_SECRET_KEY')};
- const {mkdir,writeFile,rename,chmod}=await import('node:fs/promises');
- const {dirname}=await import('node:path');
+ await mkdir(dirname(file),{recursive:true,mode:0o700});
+ const lock=file+'.lock';
+ let acquired=false;
+ for(let attempt=0;attempt<80;attempt++){
+  try{await mkdir(lock,{mode:0o700});acquired=true;break;}
+  catch(e){if((e as NodeJS.ErrnoException).code!=='EEXIST')throw e;
+   await new Promise(resolve=>setTimeout(resolve,25));}
+ }
+ if(!acquired)throw Error('tenant_config_lock_busy');
+ try{
  let tenants:Array<Record<string,unknown>>=[];
  try{
   const info=await stat(file);
@@ -102,9 +111,9 @@ export async function configurePartnerSourceFromEnv(env:NodeJS.ProcessEnv=proces
  const binding:Record<string,unknown>=index>=0?{...tenants[index]}:{partnerId,customerId};
  binding[source]=credentials;
  if(index>=0)tenants[index]=binding;else tenants.push(binding);
- await mkdir(dirname(file),{recursive:true,mode:0o700});
  const temp=file+'.'+randomBytes(12).toString('hex')+'.tmp';
  await writeFile(temp,JSON.stringify({tenants}),{flag:'wx',mode:0o600});
  await rename(temp,file);await chmod(file,0o600);
  return {partnerId,customerId,source,configured:true,restartRequired:true};
+ }finally{await rmdir(lock);}
 }

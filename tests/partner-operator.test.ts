@@ -75,3 +75,24 @@ test('source onboarding is partner-scoped, secret-safe and preserves existing bi
  await chmod(file,0o644);
  await assert.rejects(configurePartnerSourceFromEnv(base),/insecure_tenants_file_permissions/);
 });
+
+test('parallel source onboarding preserves every tenant binding',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'parallel-source-'));
+ const registryFile=join(dir,'registry.json'),file=join(dir,'tenants.json');
+ const registry=new PartnerRegistry(registryFile);
+ const token='x'.repeat(48);
+ await registry.provision({partnerId:'partner',productName:'Partner',domain:'partner.example.org',
+  supportEmail:'ops@example.org',legalEntity:'Partner AS'},token);
+ for(let i=0;i<12;i++)await registry.addCustomer('partner',token,{partnerId:'partner',
+  customerId:'client'+i,displayName:'Client '+i,enabled:true,allowedDomains:[]});
+ const results=await Promise.all(Array.from({length:12},(_,i)=>configurePartnerSourceFromEnv({
+  SPEND_REGISTRY_FILE:registryFile,SPEND_TENANTS_FILE:file,SPEND_PARTNER_ID:'partner',
+  SPEND_PARTNER_TOKEN:token,SPEND_CUSTOMER_ID:'client'+i,SPEND_SOURCE:'litellm',
+  SPEND_SOURCE_URL:'https://upstream.example.org',SPEND_SOURCE_API_KEY:'key-'+i,
+  SPEND_SOURCE_TEAM_ID:'team-'+i})));
+ assert.equal(results.length,12);
+ const data=JSON.parse(await readFile(file,'utf8'));
+ assert.equal(data.tenants.length,12);
+ assert.deepEqual(data.tenants.map((t:{customerId:string})=>t.customerId).sort(),
+  Array.from({length:12},(_,i)=>'client'+i).sort());
+});
