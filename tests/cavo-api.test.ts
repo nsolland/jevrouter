@@ -48,3 +48,29 @@ test('CAVO customer API authenticates, enforces rubric, persists and retrieves a
   assert.equal(((await audit.json()) as {count:number;valid:boolean}).count,3);
  }finally{await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));}
 });
+
+test('configured service wires CAVO persistence by customer',async()=>{
+ const {createConfiguredPartnerService}=await import('../src/partner-service.js');
+ const dir=await mkdtemp(join(tmpdir(),'cavo-wiring-'));
+ const registry=new PartnerRegistry(join(dir,'partners.json'));
+ const token='p'.repeat(48),customerToken='c'.repeat(48);
+ await registry.provision({partnerId:'p',productName:'Brand',domain:'brand.example.org',
+  supportEmail:'ops@example.org',legalEntity:'Partner'},token);
+ await registry.addCustomer('p',token,{partnerId:'p',customerId:'c',displayName:'Customer',
+  enabled:true,allowedDomains:[]});
+ const values=new CustomerValueStore(join(dir,'values.json'));
+ await values.provision('p','c',customerToken);
+ await values.update('p','c',customerToken,0,[{id:'quality',label:'Quality',metric:'quality',
+  weight:100,enabled:true,minimumEvidence:'customer_attested'}]);
+ const server=createConfiguredPartnerService({registryFile:join(dir,'partners.json'),
+  partnerId:'p',customerId:'c',customerValueFile:join(dir,'values.json'),
+  cavoDirectory:join(dir,'cavo'),invoices:{read:async()=>[]} as never});
+ await new Promise<void>(resolve=>server.listen(0,'127.0.0.1',resolve));
+ try{
+  const addr=server.address();if(!addr||typeof addr==='string')throw Error('no_port');
+  const base='http://127.0.0.1:'+addr.port+'/customers/c/cavo/audit';
+  const res=await fetch(base,{headers:{'x-partner-id':'p','x-customer-value-token':customerToken}});
+  assert.equal(res.status,200);
+  assert.equal(((await res.json()) as {valid:boolean}).valid,true);
+ }finally{await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));}
+});

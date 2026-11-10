@@ -35,7 +35,7 @@ export async function startPartnerServiceFromEnv(env:NodeJS.ProcessEnv=process.e
     (t.langfuse&&(!endpoint(t.langfuse.baseUrl)||!nonempty(t.langfuse.publicKey)||
       !nonempty(t.langfuse.secretKey))))throw Error('invalid_tenants_configuration');
   }
-  const server=createMultiPartnerService({registryFile,historyFile:env.SPEND_HISTORY_FILE,requestsDirectory:env.SPEND_SOURCE_REQUESTS_DIR,customerValueFile:env.SPEND_CUSTOMER_VALUE_FILE,tenants});
+  const server=createMultiPartnerService({registryFile,historyFile:env.SPEND_HISTORY_FILE,requestsDirectory:env.SPEND_SOURCE_REQUESTS_DIR,customerValueFile:env.SPEND_CUSTOMER_VALUE_FILE,cavoDirectory:env.SPEND_CAVO_DIRECTORY,tenants});
   const address=await listenPartnerService(server,port);
   return {server,address};
  }
@@ -50,7 +50,7 @@ export async function startPartnerServiceFromEnv(env:NodeJS.ProcessEnv=process.e
   publicKey:required(env,'SPEND_LANGFUSE_PUBLIC_KEY'),
   secretKey:required(env,'SPEND_LANGFUSE_SECRET_KEY')}:undefined;
  const server=createConfiguredPartnerService({registryFile,partnerId,customerId,
-  historyFile:env.SPEND_HISTORY_FILE,requestsDirectory:env.SPEND_SOURCE_REQUESTS_DIR,customerValueFile:env.SPEND_CUSTOMER_VALUE_FILE,
+  historyFile:env.SPEND_HISTORY_FILE,requestsDirectory:env.SPEND_SOURCE_REQUESTS_DIR,customerValueFile:env.SPEND_CUSTOMER_VALUE_FILE,cavoDirectory:env.SPEND_CAVO_DIRECTORY,
   langfuse,litellm});
  const address=await listenPartnerService(server,port);
  return {server,address};

@@ -67,9 +67,45 @@ These are not predefined success measures; customer sets targets and evidence.</
 Customer value criteria require separate organizational verification.</p>
 <button type="button" id="evaluate-value">List value hypotheses</button>
 <p id="value-status" role="status"></p><pre id="value-detail"></pre></section>
+<section><h2>CAVO decision and benefit follow-up</h2>
+<p>Customer credential required. Values are customer-reported, not independently proven causal ROI.</p>
+<label>Event type<select id="cavo-kind"><option value="initiatives">Initiative</option><option value="allocation-rules">Allocation rule</option><option value="costs">Cost event</option><option value="recommendations">Recommendation</option><option value="decisions">Customer decision</option><option value="follow-ups">Follow-up</option></select></label>
+<label>Event JSON<textarea id="cavo-payload" rows="8" style="width:100%" spellcheck="false">{}</textarea></label>
+<button type="button" id="cavo-save">Record event</button>
+<button type="button" id="cavo-audit">View history</button>
+<label>Decision ID<input id="cavo-decision-id" placeholder="Customer decision ID"></label>
+<button type="button" id="cavo-assessment">View follow-up assessment</button>
+<p id="cavo-status" role="status"></p><pre id="cavo-result"></pre></section>
 <section><h2>Report history</h2><button type="button" id="load-history">Load saved reports</button><p id="history-status" role="status"></p><div id="history"></div></section>
 </main><script src="/portal.js"></script></body></html>`;
 export const partnerPortalJs = `
+async function cavoRequest(path,body){
+ const customer=encodeURIComponent(get('customer'));
+ const headers={'x-partner-id':get('partner'),'x-customer-value-token':get('customer-value-token')};
+ const response=await fetch('/customers/'+customer+'/cavo/'+path,{method:body===undefined?'GET':'POST',
+  headers:body===undefined?headers:{...headers,'content-type':'application/json'},
+  ...(body===undefined?{}:{body:JSON.stringify(body)}),cache:'no-store'});
+ const result=await response.json();
+ if(!response.ok)throw Error(result.error??String(response.status));return result;
+}
+for(const [id,path] of [['cavo-audit','audit'],['cavo-assessment','assessment']]){
+ document.getElementById(id).addEventListener('click',async()=>{
+  const status=document.getElementById('cavo-status');status.textContent='Loading';
+  try{const suffix=path==='assessment'?'?decisionId='+encodeURIComponent(get('cavo-decision-id')):'';
+   const result=await cavoRequest(path+suffix);
+   document.getElementById('cavo-result').textContent=JSON.stringify(result,null,2);
+   status.textContent='Customer-scoped history loaded';}
+  catch(e){status.textContent='CAVO error: '+e.message;}
+ });
+}
+document.getElementById('cavo-save').addEventListener('click',async()=>{
+ const status=document.getElementById('cavo-status');status.textContent='Saving';
+ try{const payload=JSON.parse(get('cavo-payload'));
+  const result=await cavoRequest(get('cavo-kind'),payload);
+  document.getElementById('cavo-result').textContent=JSON.stringify(result,null,2);
+  status.textContent='Event recorded';}
+ catch(e){status.textContent='CAVO error: '+e.message;}
+});
 document.getElementById('load-partner').addEventListener('click',async()=>{
  const status=document.getElementById('partner-status'),workspace=document.getElementById('partner-workspace');
  status.textContent='Loading';workspace.replaceChildren();
