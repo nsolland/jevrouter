@@ -12,6 +12,7 @@ import {scanTopAiSpend} from './top-ai-spend-scan.js';
 import {proposeValueHypotheses,evaluateCustomerValue,type ValueRubric} from './customer-value-evaluator.js';
 import type {SpendRecord} from './spend-intelligence.js';
 import {CustomerValueStore} from './customer-value-store.js';
+import {CavoDecisionFileStore,type Initiative,type AllocationRule,type CostEvent,type Recommendation,type CustomerDecision,type FollowUp} from './cavo-decision-loop.js';
 import type {ValueCriterion} from './customer-value-evaluator.js';
 const portalStyle=partnerPortalHtml.match(/<style>([\s\S]*?)<\/style>/)?.[1]??'';
 const portalStyleHash=createHash('sha256').update(portalStyle).digest('base64');
@@ -24,7 +25,8 @@ export function createPartnerReportApi(registry:PartnerRegistry,
  requestsDirectory?:string,
  attributedUsageFor?:(partnerId:string,customerId:string,from:string,to:string)=>Promise<SpendRecord[]>,
  customerRubricFor?:(partnerId:string,customerId:string)=>Promise<ValueRubric|null>,
- customerValueStore?:CustomerValueStore){
+ customerValueStore?:CustomerValueStore,
+ cavoStoreFor?:(partnerId:string,customerId:string)=>CavoDecisionFileStore){
  const control=createPartnerControlHandler(registry,requestsDirectory);
  return createServer(async(req,res)=>{
   const send=(status:number,payload:unknown)=>{
@@ -38,6 +40,53 @@ export function createPartnerReportApi(registry:PartnerRegistry,
      'cache-control':'no-store','x-content-type-options':'nosniff',
      'content-security-policy':"default-src 'none'; script-src 'self'; style-src 'sha256-"+portalStyleHash+"'; connect-src 'self'; base-uri 'none'; form-action 'none'"});
     res.end(js?partnerPortalJs:partnerPortalHtml);return;
+   }
+   const cavoMatch=/^\/customers\/([a-zA-Z0-9_-]{1,128})\/cavo\/(initiatives|allocation-rules|costs|recommendations|decisions|follow-ups|audit|assessment)$/.exec(url.pathname);
+   if(cavoMatch&&(req.method==='GET'||req.method==='POST')){
+    if(!customerValueStore||!cavoStoreFor){send(404,{error:'cavo_not_configured'});return;}
+    const partnerId=req.headers['x-partner-id'],token=req.headers['x-customer-value-token'];
+    if(typeof partnerId!=='string'||typeof token!=='string'||!token){send(401,{error:'customer_value_auth_required'});return;}
+    // Authenticate before loading tenant data or mutating history.
+    const rubric=await customerValueStore.readAuthorized(partnerId,cavoMatch[1],token);
+    if(!rubric){send(422,{error:'customer_rubric_required'});return;}
+    const store=cavoStoreFor(partnerId,cavoMatch[1]);
+    if(req.method==='GET'){
+     const loop=await store.load(cavoMatch[1]);
+     if(cavoMatch[2]==='audit'){send(200,loop.audit());return;}
+     if(cavoMatch[2]==='assessment'){
+      const decisionId=url.searchParams.get('decisionId')??'';
+      if(!decisionId){send(400,{error:'decision_id_required'});return;}
+      send(200,loop.assessment(decisionId));return;
+     }
+     send(405,{error:'method_not_allowed'});return;
+    }
+    if(['audit','assessment'].includes(cavoMatch[2])){send(405,{error:'method_not_allowed'});return;}
+    let raw='';for await(const chunk of req){raw+=chunk.toString();
+     if(raw.length>32768){send(413,{error:'cavo_event_too_large'});return;}}
+    let payload:unknown;
+    try{payload=JSON.parse(raw);}catch{send(400,{error:'invalid_json'});return;}
+    if(!payload||typeof payload!=='object'||Array.isArray(payload)){
+     send(400,{error:'invalid_cavo_event'});return;}
+    const value=payload as Record<string,unknown>;
+    if(cavoMatch[2]==='initiatives'&&
+     (value.customerId!==cavoMatch[1]||value.rubricRevision!==rubric.revision||
+      !Array.isArray(value.outcomes)||value.outcomes.some(o=>
+       !o||typeof o!=='object'||!rubric.criteria.some(c=>c.id===(o as {criterionId?:string}).criterionId)))){
+     send(422,{error:'customer_criteria_or_revision_mismatch'});return;
+    }
+    const result=await store.transact(cavoMatch[1],loop=>{
+     switch(cavoMatch[2]){
+      case 'initiatives':loop.addInitiative(value as Initiative);break;
+      case 'allocation-rules':loop.addAllocationRule(value as AllocationRule);break;
+      case 'costs':loop.addCost(value as CostEvent);break;
+      case 'recommendations':loop.recommend(value as Recommendation);break;
+      case 'decisions':loop.customerDecision(value as CustomerDecision);break;
+      case 'follow-ups':loop.followUp(value as FollowUp);break;
+     }
+     return loop.audit();
+    });
+    send(201,{stored:true,eventCount:result.count,headHash:result.headHash,
+     causalRoi:'NOT_ESTABLISHED'});return;
    }
    const valueControl=/^\/customers\/([a-zA-Z0-9_-]{1,128})\/value-(history|decisions)$/.exec(url.pathname);
    if(valueControl&&(req.method==='GET'||req.method==='POST')){
@@ -210,7 +259,9 @@ export function createPartnerReportApi(registry:PartnerRegistry,
   }catch(e){
    const message=(e as Error).message;
    const status=message==='customer_value_auth_denied'?401:
-    message==='rubric_revision_conflict'?409:
+    message==='rubric_revision_conflict'||message==='duplicate_event'?409:
+    message==='invalid_cavo_snapshot'||message==='cavo_customer_scope_denied'?422:
+    message.startsWith('invalid_')||message==='decision_not_found'?400:
     message==='invalid_customer_rubric'||message==='invalid_value_criterion'||
     message==='invalid_value_decision'?400:
     message==='customer_rubric_required'?422:
