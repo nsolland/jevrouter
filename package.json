@@ -17,7 +17,8 @@
     "node": ">=20"
   },
   "bin": {
-    "jevrouter": "./bin/jevrouter.mjs"
+    "jevrouter": "./bin/jevrouter.mjs",
+    "jevrouter-spend": "./bin/jevrouter-spend.mjs"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

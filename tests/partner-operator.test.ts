@@ -32,3 +32,15 @@ test('operator launches multi-partner white-label runtime from protected config'
  await chmod(file,0o644);
  await assert.rejects(startPartnerServiceFromEnv(env),/insecure_tenants_file_permissions/);
 });
+
+test('multi-partner config rejects missing credentials and nonlocal cleartext upstream',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'partner-invalid-env-'));
+ const file=join(dir,'tenants.json');
+ const env={SPEND_REGISTRY_FILE:join(dir,'registry.json'),SPEND_TENANTS_FILE:file};
+ for(const litellm of [
+  {baseUrl:'https://valid.example',apiKey:'',teamId:'team'},
+  {baseUrl:'http://remote.example',apiKey:'secret',teamId:'team'}]){
+  await writeFile(file,JSON.stringify({tenants:[{partnerId:'p',customerId:'c',litellm}]}),{mode:0o600});
+  await assert.rejects(startPartnerServiceFromEnv(env),/invalid_tenants_configuration/);
+ }
+});

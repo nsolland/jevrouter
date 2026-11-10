@@ -21,9 +21,18 @@ export async function startPartnerServiceFromEnv(env:NodeJS.ProcessEnv=process.e
   const tenants=parsed.tenants as Array<{partnerId:string;customerId:string;
    litellm?:{baseUrl:string;apiKey:string;teamId:string};
    langfuse?:{baseUrl:string;publicKey:string;secretKey:string}}>;
+  const nonempty=(v:unknown):v is string=>typeof v==='string'&&v.trim().length>0;
+  const endpoint=(v:unknown)=>nonempty(v)&&(()=>{try{
+   const u=new URL(v);return u.protocol==='https:'||
+    (u.protocol==='http:'&&['127.0.0.1','localhost','[::1]'].includes(u.hostname));
+  }catch{return false;}})();
   for(const t of tenants){
-   if(!t||typeof t.partnerId!=='string'||typeof t.customerId!=='string'||
-    (!t.litellm&&!t.langfuse))throw Error('invalid_tenants_configuration');
+   if(!t||!nonempty(t.partnerId)||!nonempty(t.customerId)||
+    (!t.litellm&&!t.langfuse)||
+    (t.litellm&&(!endpoint(t.litellm.baseUrl)||!nonempty(t.litellm.apiKey)||
+      !nonempty(t.litellm.teamId)))||
+    (t.langfuse&&(!endpoint(t.langfuse.baseUrl)||!nonempty(t.langfuse.publicKey)||
+      !nonempty(t.langfuse.secretKey))))throw Error('invalid_tenants_configuration');
   }
   const server=createMultiPartnerService({registryFile,historyFile:env.SPEND_HISTORY_FILE,tenants});
   const address=await listenPartnerService(server,port);
