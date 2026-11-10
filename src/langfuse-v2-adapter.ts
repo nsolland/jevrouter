@@ -54,6 +54,7 @@ export async function importLangfuseObservations(args:{
    usage.push({id:'langfuse:'+o.id,partnerId:args.partnerId,customerId:args.customerId,
     source:'langfuse-observations-v2',provider:'langfuse',
     model:o.model,workflow:typeof o.name==='string'?o.name:'unattributed',
+    ...(typeof o.userId==='string'&&o.userId.trim()&&o.userId.length<=128?{actorId:o.userId}:{}),
     occurredAt:o.startTime,amountMinor:Math.round(cost*100),currency:'USD'});
   }
   const next=b.meta?.cursor;

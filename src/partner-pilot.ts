@@ -4,7 +4,8 @@
 import {assessAiSpend,type AssessmentReport,type AssessmentEvidence} from './spend-assessment.js';
 import {resolveWhiteLabelContext,renderWhiteLabelReport,type PartnerBrand,type PartnerCustomer} from './partner-white-label.js';
 export type MeteredUsage={id:string;partnerId:string;customerId:string;source:string;
- provider:string;model:string;workflow:string;occurredAt:string;amountMinor:number;currency:string};
+ provider:string;model:string;workflow:string;occurredAt:string;amountMinor:number;currency:string;
+ actorId?:string};
 export type InvoiceLine={id:string;partnerId:string;customerId:string;source:string;
  provider:string;periodStart:string;periodEnd:string;amountMinor:number;currency:string};
 export interface ReadOnlySpendAdapter {

@@ -4,7 +4,7 @@
 import {createPartnerReportApi} from './partner-report-api.js';
 import {PartnerRegistry} from './partner-registry.js';
 import {PartnerReportHistory} from './partner-report-history.js';
-import {createPartnerSpendImport} from './partner-spend-import.js';
+import {createPartnerSpendImport,readAttributedSpend} from './partner-spend-import.js';
 import type {ReadOnlySpendAdapter} from './partner-pilot.js';
 export function createConfiguredPartnerService(config:{
  registryFile:string;partnerId:string;customerId:string;historyFile?:string;requestsDirectory?:string;
@@ -24,7 +24,13 @@ export function createConfiguredPartnerService(config:{
    langfuse:config.langfuse,litellm:config.litellm,invoices:config.invoices});
  },config.historyFile?new PartnerReportHistory(config.historyFile):undefined,
   (partnerId,customerId)=>partnerId===config.partnerId&&customerId===config.customerId?
-   [config.langfuse?'langfuse':null,config.litellm?'litellm':null,config.invoices?'invoices':null].filter((x):x is string=>x!==null):[],config.requestsDirectory);
+   [config.langfuse?'langfuse':null,config.litellm?'litellm':null,config.invoices?'invoices':null].filter((x):x is string=>x!==null):[],config.requestsDirectory,
+  (partnerId,customerId,from,to)=>{
+   if(partnerId!==config.partnerId||customerId!==config.customerId)throw Error('service_scope_denied');
+   return readAttributedSpend({partnerId,customerId,from:from+'T00:00:00Z',
+    to:to+'T23:59:59Z',langfuse:config.langfuse,litellm:config.litellm,
+    invoices:config.invoices});
+  });
 }
 /** Multi-partner white-label runtime. Each exact tenant binding has its own sources.
  * Customer creation never grants access to another tenant's upstream credentials.
@@ -55,7 +61,14 @@ export function createMultiPartnerService(config:{
   },config.historyFile?new PartnerReportHistory(config.historyFile):undefined,
   (partnerId,customerId)=>{const tenant=bindings.get(JSON.stringify([partnerId,customerId]));
    return tenant?[tenant.langfuse?'langfuse':null,tenant.litellm?'litellm':null,
-    tenant.invoices?'invoices':null].filter((x):x is string=>x!==null):[];},config.requestsDirectory);
+    tenant.invoices?'invoices':null].filter((x):x is string=>x!==null):[];},config.requestsDirectory,
+  (partnerId,customerId,from,to)=>{
+   const tenant=bindings.get(JSON.stringify([partnerId,customerId]));
+   if(!tenant)throw Error('service_scope_denied');
+   return readAttributedSpend({partnerId,customerId,from:from+'T00:00:00Z',
+    to:to+'T23:59:59Z',langfuse:tenant.langfuse,litellm:tenant.litellm,
+    invoices:tenant.invoices});
+  });
 }
 export async function listenPartnerService(server:ReturnType<typeof createPartnerReportApi>,
  port:number,host='127.0.0.1'){

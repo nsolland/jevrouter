@@ -48,7 +48,9 @@ export async function importLiteLLMSpend(args:{baseUrl:string;apiKey:string;team
     costAuthority:'BILLED',partnerId:args.partnerId,
     customerId:args.customerId,source:'litellm-spend-v2',
     provider:typeof r.custom_llm_provider==='string'?r.custom_llm_provider:'unknown',
-    model:r.model,workflow:'unattributed',occurredAt:r.startTime,
+    model:r.model,workflow:'unattributed',
+    ...(typeof r.user==='string'&&r.user.trim()&&r.user.length<=128?{actorId:r.user}:{}),
+    occurredAt:r.startTime,
     amountMinor:Math.round(amount*100),currency:'USD'});
   }
   if(page>=(b.total_pages as number))return {usage,unpriced,pages:page};

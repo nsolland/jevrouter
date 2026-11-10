@@ -62,6 +62,7 @@ export function createPartnerReportApi(registry:PartnerRegistry,
      send(422,{error:'actor_attribution_not_configured',
       explanation:'Provider cost records lack a verified user or agent identifier. No top-decile claim can be made.'});return;
     }
+    if(currency!=='USD'){send(422,{error:'source_currency_usd_only'});return;}
     const records=await attributedUsageFor(partnerId,scanMatch[1],from,to);
     const result=scanTopAiSpend({partnerId,tenantId:scanMatch[1],currency,
      periodStart:from,periodEnd:to,records});
@@ -115,7 +116,8 @@ export function createPartnerReportApi(registry:PartnerRegistry,
    send(200,payload);
   }catch(e){
    const message=(e as Error).message;
-   const status=message==='partner_auth_denied'?401:
+   const status=message==='actor_attribution_missing'?422:
+    message==='partner_auth_denied'?401:
     message==='customer_scope_denied'?404:
     message==='currency_mismatch'||message==='invalid_assessment'?400:502;
    send(status,{error:status===502?'upstream_report_failed':message});
