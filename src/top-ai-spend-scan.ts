@@ -7,7 +7,7 @@ export type ValueEvidence={actorId:string;useCase:string;observedBenefitMinor:nu
 export type TopSpendScanInput={partnerId:string;tenantId:string;currency:string;
  periodStart:string;periodEnd:string;records:SpendRecord[];valueEvidence?:ValueEvidence[]};
 export type TopConsumer={rank:number;actorId:string;spendMinor:number;sharePct:number;
- useCases:string[];valueStatus:'NOT_ESTABLISHED'|'OBSERVED_NOT_CAUSAL';
+ useCases:string[];byModel:Record<string,number>;byWorkflow:Record<string,number>;valueStatus:'NOT_ESTABLISHED'|'OBSERVED_NOT_CAUSAL';
  observedIncrementalBenefitMinor?:number;observedNetMinor?:number};
 const validAmount=(n:number)=>Number.isSafeInteger(n)&&n>=0;
 const date=(s:string)=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&
@@ -17,7 +17,8 @@ export function scanTopAiSpend(input:TopSpendScanInput){
   !date(input.periodEnd)||input.periodStart>input.periodEnd||!Array.isArray(input.records))
   throw Error('invalid_scan');
  const seen=new Set<string>();
- const actors=new Map<string,{spendMinor:number;useCases:Set<string>}>();
+ const actors=new Map<string,{spendMinor:number;useCases:Set<string>;
+  byModel:Record<string,number>;byWorkflow:Record<string,number>}>();
  let totalMinor=0;
  for(const record of input.records){
   if(record.tenantId!==input.tenantId)throw Error('tenant_mismatch');
@@ -30,9 +31,13 @@ export function scanTopAiSpend(input:TopSpendScanInput){
   if(!record.actorId.trim())throw Error('missing_actor_attribution');
   if(totalMinor>Number.MAX_SAFE_INTEGER-record.amountMinor)throw Error('amount_overflow');
   totalMinor+=record.amountMinor;
-  const actor=actors.get(record.actorId)??{spendMinor:0,useCases:new Set<string>()};
+  const actor=actors.get(record.actorId)??{spendMinor:0,useCases:new Set<string>(),
+   byModel:{} as Record<string,number>,byWorkflow:{} as Record<string,number>};
   actor.spendMinor+=record.amountMinor;
-  actor.useCases.add(record.useCase);actors.set(record.actorId,actor);
+  actor.useCases.add(record.useCase);
+  actor.byModel[record.model]=(actor.byModel[record.model]??0)+record.amountMinor;
+  actor.byWorkflow[record.useCase]=(actor.byWorkflow[record.useCase]??0)+record.amountMinor;
+  actors.set(record.actorId,actor);
  }
  const sorted=[...actors.entries()].sort((a,b)=>b[1].spendMinor-a[1].spendMinor||
   a[0].localeCompare(b[0]));
@@ -52,7 +57,7 @@ export function scanTopAiSpend(input:TopSpendScanInput){
    sum+e.observedBenefitMinor-e.baselineMinor,0):undefined;
   return {rank:i+1,actorId,spendMinor:actor.spendMinor,
    sharePct:totalMinor?Math.round(actor.spendMinor/totalMinor*10000)/100:0,
-   useCases:[...actor.useCases].sort(),
+   useCases:[...actor.useCases].sort(),byModel:actor.byModel,byWorkflow:actor.byWorkflow,
    valueStatus:observed===undefined?'NOT_ESTABLISHED':'OBSERVED_NOT_CAUSAL',
    ...(observed===undefined?{}:{observedIncrementalBenefitMinor:observed,
     observedNetMinor:observed-actor.spendMinor})};

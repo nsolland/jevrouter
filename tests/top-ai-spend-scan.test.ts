@@ -17,6 +17,8 @@ test('top decile scan identifies spend concentration without inventing ROI',()=>
  assert.equal(scan.roiStatus,'NOT_CAUSALLY_ESTABLISHED');
  assert.ok(scan.population.topSharePct>60);
  assert.equal(scan.spend.topSpendMinor,6500);
+ assert.equal(scan.topConsumers[0].byModel.m,6500);
+ assert.equal(scan.topConsumers[0].byWorkflow.coding,6500);
 });
 test('observed benefit is labeled noncausal and scoped to actor',()=>{
  const scan=scanTopAiSpend({...base,valueEvidence:[{actorId:'actor0',useCase:'coding',
