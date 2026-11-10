@@ -11,6 +11,8 @@ import {runPartnerPilot,type ReadOnlySpendAdapter} from './partner-pilot.js';
 import {scanTopAiSpend} from './top-ai-spend-scan.js';
 import {proposeValueHypotheses,evaluateCustomerValue,type ValueRubric} from './customer-value-evaluator.js';
 import type {SpendRecord} from './spend-intelligence.js';
+import {CustomerValueStore} from './customer-value-store.js';
+import type {ValueCriterion} from './customer-value-evaluator.js';
 const portalStyle=partnerPortalHtml.match(/<style>([\s\S]*?)<\/style>/)?.[1]??'';
 const portalStyleHash=createHash('sha256').update(portalStyle).digest('base64');
 const validDate=(s:string)=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&
@@ -21,7 +23,8 @@ export function createPartnerReportApi(registry:PartnerRegistry,
  sourceStatus?:(partnerId:string,customerId:string)=>string[],
  requestsDirectory?:string,
  attributedUsageFor?:(partnerId:string,customerId:string,from:string,to:string)=>Promise<SpendRecord[]>,
- customerRubricFor?:(partnerId:string,customerId:string)=>Promise<ValueRubric|null>){
+ customerRubricFor?:(partnerId:string,customerId:string)=>Promise<ValueRubric|null>,
+ customerValueStore?:CustomerValueStore){
  const control=createPartnerControlHandler(registry,requestsDirectory);
  return createServer(async(req,res)=>{
   const send=(status:number,payload:unknown)=>{
@@ -35,6 +38,26 @@ export function createPartnerReportApi(registry:PartnerRegistry,
      'cache-control':'no-store','x-content-type-options':'nosniff',
      'content-security-policy':"default-src 'none'; script-src 'self'; style-src 'sha256-"+portalStyleHash+"'; connect-src 'self'; base-uri 'none'; form-action 'none'"});
     res.end(js?partnerPortalJs:partnerPortalHtml);return;
+   }
+   const rubricMatch=/^\/customers\/([a-zA-Z0-9_-]{1,128})\/value-rubric$/.exec(url.pathname);
+   if(rubricMatch&&(req.method==='GET'||req.method==='PUT')){
+    if(!customerValueStore){send(404,{error:'customer_value_store_not_configured'});return;}
+    const partnerId=req.headers['x-partner-id'];
+    const token=req.headers['x-customer-value-token'];
+    if(typeof partnerId!=='string'||typeof token!=='string'||!token){
+     send(401,{error:'customer_value_auth_required'});return;
+    }
+    if(req.method==='GET'){
+     // Read access is also authenticated by a no-op optimistic revision check.
+     const rubric=await customerValueStore.readAuthorized(partnerId,rubricMatch[1],token);
+     send(200,{rubric});return;
+    }
+    let raw='';for await(const chunk of req){raw+=chunk.toString();
+     if(raw.length>32768){send(413,{error:'rubric_too_large'});return;}}
+    const body=JSON.parse(raw) as {expectedRevision:number;criteria:ValueCriterion[]};
+    const rubric=await customerValueStore.update(partnerId,rubricMatch[1],token,
+     body.expectedRevision,body.criteria);
+    send(200,{rubric});return;
    }
    const sourcesMatch=/^\/customers\/([a-zA-Z0-9_-]{1,128})\/sources$/.exec(url.pathname);
    if(req.method==='GET'&&sourcesMatch){
@@ -87,7 +110,8 @@ export function createPartnerReportApi(registry:PartnerRegistry,
     }
     const records=await attributedUsageFor(partnerId,valueMatch[1],from,to);
     const hypotheses=proposeValueHypotheses(records,valueMatch[1]);
-    const rubric=customerRubricFor?await customerRubricFor(partnerId,valueMatch[1]):null;
+    const rubric=customerValueStore?await customerValueStore.get(partnerId,valueMatch[1]):
+     customerRubricFor?await customerRubricFor(partnerId,valueMatch[1]):null;
     if(!rubric){send(200,{authority:'ADVISORY_ONLY',
      rubricStatus:'CUSTOMER_RUBRIC_NOT_VERIFIED',hypotheses,
      evaluation:null,notice:'No verified customer rubric. Hypotheses are not accepted customer value.'});return;}
@@ -143,7 +167,10 @@ export function createPartnerReportApi(registry:PartnerRegistry,
    send(200,payload);
   }catch(e){
    const message=(e as Error).message;
-   const status=message==='actor_attribution_missing'?422:
+   const status=message==='customer_value_auth_denied'?401:
+    message==='rubric_revision_conflict'?409:
+    message==='invalid_customer_rubric'||message==='invalid_value_criterion'?400:
+    message==='actor_attribution_missing'?422:
     message==='partner_auth_denied'?401:
     message==='customer_scope_denied'?404:
     message==='currency_mismatch'||message==='invalid_assessment'?400:502;

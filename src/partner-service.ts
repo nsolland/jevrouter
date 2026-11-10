@@ -3,11 +3,12 @@
  */
 import {createPartnerReportApi} from './partner-report-api.js';
 import {PartnerRegistry} from './partner-registry.js';
+import {CustomerValueStore} from './customer-value-store.js';
 import {PartnerReportHistory} from './partner-report-history.js';
 import {createPartnerSpendImport,readAttributedSpend} from './partner-spend-import.js';
 import type {ReadOnlySpendAdapter} from './partner-pilot.js';
 export function createConfiguredPartnerService(config:{
- registryFile:string;partnerId:string;customerId:string;historyFile?:string;requestsDirectory?:string;
+ registryFile:string;partnerId:string;customerId:string;historyFile?:string;requestsDirectory?:string;customerValueFile?:string;
  langfuse?:{baseUrl:string;publicKey:string;secretKey:string;fetcher?:typeof fetch};
  litellm?:{baseUrl:string;apiKey:string;teamId:string;fetcher?:typeof fetch};
  invoices?:ReadOnlySpendAdapter;
@@ -30,13 +31,13 @@ export function createConfiguredPartnerService(config:{
    return readAttributedSpend({partnerId,customerId,from:from+'T00:00:00Z',
     to:to+'T23:59:59Z',langfuse:config.langfuse,litellm:config.litellm,
     invoices:config.invoices});
-  });
+  },undefined,config.customerValueFile?new CustomerValueStore(config.customerValueFile):undefined);
 }
 /** Multi-partner white-label runtime. Each exact tenant binding has its own sources.
  * Customer creation never grants access to another tenant's upstream credentials.
  */
 export function createMultiPartnerService(config:{
- registryFile:string;historyFile?:string;requestsDirectory?:string;
+ registryFile:string;historyFile?:string;requestsDirectory?:string;customerValueFile?:string;
  tenants:Array<{partnerId:string;customerId:string;
   langfuse?:{baseUrl:string;publicKey:string;secretKey:string;fetcher?:typeof fetch};
   litellm?:{baseUrl:string;apiKey:string;teamId:string;fetcher?:typeof fetch};
@@ -68,7 +69,7 @@ export function createMultiPartnerService(config:{
    return readAttributedSpend({partnerId,customerId,from:from+'T00:00:00Z',
     to:to+'T23:59:59Z',langfuse:tenant.langfuse,litellm:tenant.litellm,
     invoices:tenant.invoices});
-  });
+  },undefined,config.customerValueFile?new CustomerValueStore(config.customerValueFile):undefined);
 }
 export async function listenPartnerService(server:ReturnType<typeof createPartnerReportApi>,
  port:number,host='127.0.0.1'){

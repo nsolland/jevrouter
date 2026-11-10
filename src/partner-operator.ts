@@ -35,7 +35,7 @@ export async function startPartnerServiceFromEnv(env:NodeJS.ProcessEnv=process.e
     (t.langfuse&&(!endpoint(t.langfuse.baseUrl)||!nonempty(t.langfuse.publicKey)||
       !nonempty(t.langfuse.secretKey))))throw Error('invalid_tenants_configuration');
   }
-  const server=createMultiPartnerService({registryFile,historyFile:env.SPEND_HISTORY_FILE,requestsDirectory:env.SPEND_SOURCE_REQUESTS_DIR,tenants});
+  const server=createMultiPartnerService({registryFile,historyFile:env.SPEND_HISTORY_FILE,requestsDirectory:env.SPEND_SOURCE_REQUESTS_DIR,customerValueFile:env.SPEND_CUSTOMER_VALUE_FILE,tenants});
   const address=await listenPartnerService(server,port);
   return {server,address};
  }
@@ -50,7 +50,7 @@ export async function startPartnerServiceFromEnv(env:NodeJS.ProcessEnv=process.e
   publicKey:required(env,'SPEND_LANGFUSE_PUBLIC_KEY'),
   secretKey:required(env,'SPEND_LANGFUSE_SECRET_KEY')}:undefined;
  const server=createConfiguredPartnerService({registryFile,partnerId,customerId,
-  historyFile:env.SPEND_HISTORY_FILE,requestsDirectory:env.SPEND_SOURCE_REQUESTS_DIR,
+  historyFile:env.SPEND_HISTORY_FILE,requestsDirectory:env.SPEND_SOURCE_REQUESTS_DIR,customerValueFile:env.SPEND_CUSTOMER_VALUE_FILE,
   langfuse,litellm});
  const address=await listenPartnerService(server,port);
  return {server,address};
@@ -152,4 +152,19 @@ export async function issueOperatorFromEnv(env:NodeJS.ProcessEnv=process.env){
  const token=env.SPEND_OPERATOR_TOKEN??randomBytes(32).toString('hex');
  await registry.issueOperator(partnerId,required(env,'SPEND_PARTNER_TOKEN'),token);
  return {partnerId,role:'operator' as const,token};
+}
+/** Owner provisions a separate customer value credential, delivered outside this API. */
+export async function provisionCustomerValueFromEnv(env:NodeJS.ProcessEnv=process.env){
+ const registry=new PartnerRegistry(required(env,'SPEND_REGISTRY_FILE'));
+ const partnerId=required(env,'SPEND_PARTNER_ID');
+ const customerId=required(env,'SPEND_CUSTOMER_ID');
+ const ownerToken=required(env,'SPEND_PARTNER_TOKEN');
+ const actor=await registry.authenticate(partnerId,ownerToken);
+ if(actor.role!=='owner')throw Error('role_forbidden');
+ await registry.customer(partnerId,ownerToken,customerId);
+ const token=env.SPEND_CUSTOMER_VALUE_TOKEN??randomBytes(32).toString('hex');
+ const {CustomerValueStore}=await import('./customer-value-store.js');
+ const store=new CustomerValueStore(required(env,'SPEND_CUSTOMER_VALUE_FILE'));
+ await store.provision(partnerId,customerId,token);
+ return {partnerId,customerId,token,delivery:'OUT_OF_BAND_REQUIRED'};
 }

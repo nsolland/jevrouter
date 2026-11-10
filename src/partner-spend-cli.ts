@@ -1,6 +1,6 @@
 import {readFile,stat} from 'node:fs/promises';
 import {scanTopAiSpend,type TopSpendScanInput} from './top-ai-spend-scan.js';
-import {configurePartnerSourceFromEnv,issueOperatorFromEnv,provisionPartnerFromEnv,startPartnerServiceFromEnv} from './partner-operator.js';
+import {configurePartnerSourceFromEnv,provisionCustomerValueFromEnv,issueOperatorFromEnv,provisionPartnerFromEnv,startPartnerServiceFromEnv} from './partner-operator.js';
 const mode=process.argv[2];
 try{
  if(mode==='provision'){
@@ -11,6 +11,9 @@ try{
   process.stdout.write(JSON.stringify(result)+'\n');
  }else if(mode==='configure-source'){
   const result=await configurePartnerSourceFromEnv();
+  process.stdout.write(JSON.stringify(result)+'\n');
+ }else if(mode==='provision-customer-value'){
+  const result=await provisionCustomerValueFromEnv();
   process.stdout.write(JSON.stringify(result)+'\n');
  }else if(mode==='scan-top-spend'){
   const file=process.env.SPEND_SCAN_INPUT_FILE;
@@ -23,7 +26,7 @@ try{
   const {address}=await startPartnerServiceFromEnv();
   process.stdout.write('partner service listening on '+JSON.stringify(address)+'\n');
  }else{
-  process.stderr.write('Usage: partner-spend-cli provision|issue-operator|configure-source|scan-top-spend|serve\n');
+  process.stderr.write('Usage: partner-spend-cli provision|issue-operator|configure-source|provision-customer-value|scan-top-spend|serve\n');
   process.exitCode=2;
  }
 }catch(e){

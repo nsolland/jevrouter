@@ -37,7 +37,13 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere}.warning{color:#8b3500;font-weig
 <p>Top 10% of observed users or agents. Requires attributed usage records; unverified value is not ROI.</p>
 <button type="button" id="scan-top">Analyze top 10%</button><p id="scan-status" role="status"></p>
 <div id="scan-summary" class="grid"></div><details><summary>Scan evidence</summary><pre id="scan-detail"></pre></details></section>
-<section><h2>Value evaluator (advisory)</h2><p>Suggested opportunities are not proven savings.
+<section><h2>Customer-owned value criteria</h2>
+<p>Requires a separately provisioned customer credential. Partner access tokens cannot approve criteria.</p>
+<label>Customer value token (not stored)<input id="customer-value-token" type="password" autocomplete="off"></label>
+<button type="button" id="load-rubric">Load customer criteria</button>
+<label>Criteria JSON (customer-controlled)<textarea id="value-criteria" rows="7" style="width:100%" spellcheck="false">[{"id":"quality","label":"Quality","weight":100,"enabled":true,"metric":"quality","minimumEvidence":"measured"}]</textarea></label>
+<button type="button" id="save-rubric">Save customer criteria</button><p id="rubric-status" role="status"></p>
+</section><section><h2>Value evaluator (advisory)</h2><p>Suggested opportunities are not proven savings.
 Customer value criteria require separate organizational verification.</p>
 <button type="button" id="evaluate-value">List value hypotheses</button>
 <p id="value-status" role="status"></p><pre id="value-detail"></pre></section>
@@ -90,6 +96,28 @@ document.getElementById('scan-top').addEventListener('click',async()=>{
  metric('Top-group spend',money(data.spend.topSpendMinor,data.currency)));
  details.textContent=JSON.stringify(data,null,2);
  }catch{status.textContent='Scan unavailable';}
+});
+let rubricRevision=0;
+const rubricUrl=()=>'/customers/'+encodeURIComponent(get('customer'))+'/value-rubric';
+const rubricHeaders=()=>({'x-partner-id':get('partner'),
+ 'x-customer-value-token':get('customer-value-token')});
+document.getElementById('load-rubric').addEventListener('click',async()=>{
+ const status=document.getElementById('rubric-status');
+ try{const response=await fetch(rubricUrl(),{headers:rubricHeaders(),cache:'no-store'});
+ const data=await response.json();if(!response.ok){status.textContent=data.error;return;}
+ rubricRevision=data.rubric?.revision??0;
+ if(data.rubric)document.getElementById('value-criteria').value=JSON.stringify(data.rubric.criteria,null,2);
+ status.textContent='Customer revision '+rubricRevision;
+ }catch{status.textContent='Cannot load customer criteria';}
+});
+document.getElementById('save-rubric').addEventListener('click',async()=>{
+ const status=document.getElementById('rubric-status');
+ try{const criteria=JSON.parse(get('value-criteria'));
+ const response=await fetch(rubricUrl(),{method:'PUT',headers:{...rubricHeaders(),
+ 'content-type':'application/json'},body:JSON.stringify({expectedRevision:rubricRevision,criteria})});
+ const data=await response.json();if(!response.ok){status.textContent=data.error;return;}
+ rubricRevision=data.rubric.revision;status.textContent='Saved customer revision '+rubricRevision;
+ }catch{status.textContent='Invalid criteria or save failed';}
 });
 document.getElementById('evaluate-value').addEventListener('click',async()=>{
  const status=document.getElementById('value-status'),details=document.getElementById('value-detail');
