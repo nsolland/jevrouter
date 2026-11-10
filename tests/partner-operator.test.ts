@@ -1,10 +1,10 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,writeFile,chmod} from 'node:fs/promises';
+import {mkdtemp,writeFile,chmod,readFile} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {PartnerRegistry} from '../src/partner-registry.js';
-import {provisionPartnerFromEnv,startPartnerServiceFromEnv} from '../src/partner-operator.js';
+import {configurePartnerSourceFromEnv,provisionPartnerFromEnv,startPartnerServiceFromEnv} from '../src/partner-operator.js';
 test('operator provisions partner and rejects public service binding',async()=>{
  const file=join(await mkdtemp(join(tmpdir(),'partner-operator-')),'registry.json');
  const env={SPEND_REGISTRY_FILE:file,SPEND_PARTNER_ID:'partner',
@@ -43,4 +43,35 @@ test('multi-partner config rejects missing credentials and nonlocal cleartext up
   await writeFile(file,JSON.stringify({tenants:[{partnerId:'p',customerId:'c',litellm}]}),{mode:0o600});
   await assert.rejects(startPartnerServiceFromEnv(env),/invalid_tenants_configuration/);
  }
+});
+
+test('source onboarding is partner-scoped, secret-safe and preserves existing bindings',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'source-onboard-'));
+ const registryFile=join(dir,'registry.json'),file=join(dir,'tenants.json');
+ const registry=new PartnerRegistry(registryFile);
+ for(const id of ['alpha','beta']){
+  await registry.provision({partnerId:id,productName:id,domain:id+'.example.org',
+   supportEmail:'ops@example.org',legalEntity:id},id.repeat(12));
+  await registry.addCustomer(id,id.repeat(12),{partnerId:id,customerId:'same',
+   displayName:id,enabled:true,allowedDomains:[]});
+ }
+ const base={SPEND_REGISTRY_FILE:registryFile,SPEND_TENANTS_FILE:file,
+  SPEND_PARTNER_ID:'alpha',SPEND_CUSTOMER_ID:'same',SPEND_PARTNER_TOKEN:'alpha'.repeat(12),
+  SPEND_SOURCE_URL:'https://langfuse.example',SPEND_SOURCE:'langfuse',
+  SPEND_SOURCE_PUBLIC_KEY:'public',SPEND_SOURCE_SECRET_KEY:'secret'};
+ const first=await configurePartnerSourceFromEnv(base);
+ assert.deepEqual(first,{partnerId:'alpha',customerId:'same',source:'langfuse',
+  configured:true,restartRequired:true});
+ const second=await configurePartnerSourceFromEnv({...base,SPEND_SOURCE:'litellm',
+  SPEND_SOURCE_URL:'https://litellm.example',SPEND_SOURCE_API_KEY:'litellm-secret',
+  SPEND_SOURCE_TEAM_ID:'team'});
+ assert.equal(second.source,'litellm');
+ const saved=JSON.parse(await readFile(file,'utf8'));
+ assert.equal(saved.tenants.length,1);
+ assert.equal(saved.tenants[0].langfuse.secretKey,'secret');
+ assert.equal(saved.tenants[0].litellm.apiKey,'litellm-secret');
+ await assert.rejects(configurePartnerSourceFromEnv({...base,SPEND_PARTNER_TOKEN:'beta'.repeat(12)}),
+  /partner_auth_denied/);
+ await chmod(file,0o644);
+ await assert.rejects(configurePartnerSourceFromEnv(base),/insecure_tenants_file_permissions/);
 });

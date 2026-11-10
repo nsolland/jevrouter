@@ -1,14 +1,17 @@
-import {provisionPartnerFromEnv,startPartnerServiceFromEnv} from './partner-operator.js';
+import {configurePartnerSourceFromEnv,provisionPartnerFromEnv,startPartnerServiceFromEnv} from './partner-operator.js';
 const mode=process.argv[2];
 try{
  if(mode==='provision'){
   const result=await provisionPartnerFromEnv();
   process.stdout.write(JSON.stringify(result)+'\n');
+ }else if(mode==='configure-source'){
+  const result=await configurePartnerSourceFromEnv();
+  process.stdout.write(JSON.stringify(result)+'\n');
  }else if(mode==='serve'){
   const {address}=await startPartnerServiceFromEnv();
   process.stdout.write('partner service listening on '+JSON.stringify(address)+'\n');
  }else{
-  process.stderr.write('Usage: partner-spend-cli provision|serve\n');
+  process.stderr.write('Usage: partner-spend-cli provision|configure-source|serve\n');
   process.exitCode=2;
  }
 }catch(e){
