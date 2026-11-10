@@ -76,7 +76,22 @@ Customer value criteria require separate organizational verification.</p>
 <label>Amount (minor units)<input id="cavo-amount" type="number" min="0" step="1" value="0"></label>
 <label>Customer rationale<input id="cavo-rationale" placeholder="Why this decision?"></label>
 <label>Decision<select id="cavo-choice"><option value="PROCEED">Proceed</option><option value="DEFER">Defer</option><option value="REJECT">Reject</option></select></label></div>
+<div class="grid">
+<label>Actor / workflow<input id="cavo-actor" placeholder="agent-1"></label>
+<label>Workflow<input id="cavo-workflow" placeholder="customer-support"></label>
+<label>Attempt<select id="cavo-attempt"><option>SUCCESS</option><option>FAILED</option><option>RETRY</option></select></label>
+<label>Rule version<input id="cavo-rule-version" type="number" min="1" step="1" value="1"></label>
+<label>Allocation unit<input id="cavo-unit" placeholder="support"></label>
+<label>Baseline<input id="cavo-baseline" type="number" value="0"></label>
+<label>Target<input id="cavo-target" type="number" value="1"></label>
+<label>Actual result<input id="cavo-actual" type="number" value="1"></label>
+<label>Result unit<input id="cavo-outcome-unit" value="points"></label>
+<label>Evidence source ID<input id="cavo-source" placeholder="customer-measurement-1"></label>
+<label>Evidence level<select id="cavo-evidence"><option value="HYPOTHESIS">Hypothesis</option><option value="CUSTOMER_ATTESTED">Customer attested</option><option value="MEASURED">Measured</option></select></label>
+<label>Implemented<select id="cavo-implemented"><option value="true">Yes</option><option value="false">No</option></select></label>
+</div>
 <button type="button" id="cavo-template">Prepare event from fields</button>
+<button type="button" id="cavo-submit-form">Save directly from fields</button>
 <button type="button" id="cavo-run-synthetic">Run synthetic full-cycle demo</button>
 <p>Demo creates explicitly labeled synthetic records in this customer's workspace. Use only a test customer.</p>
 <p>Review the generated JSON before recording. Initiatives must reference the customer's approved rubric and outcomes.</p>
@@ -138,30 +153,57 @@ document.getElementById('cavo-run-synthetic').addEventListener('click',async()=>
   status.textContent='SYNTHETIC DEMO COMPLETE. Not real evidence or verified ROI.';
  }catch(e){status.textContent='Synthetic demo failed: '+e.message;}
 });
+async function cavoFormPayload(){
+ const id=get('cavo-record-id'),description=get('cavo-description'),related=get('cavo-related');
+ const amount=Number(get('cavo-amount')),version=Number(get('cavo-rule-version'));
+ if(!id||!Number.isSafeInteger(amount)||amount<0||!Number.isSafeInteger(version)||version<1)
+  throw Error('Valid event ID, amount and rule version required');
+ const kind=get('cavo-kind'),at=new Date().toISOString();
+ if(kind==='initiatives'){
+  const response=await fetch('/customers/'+encodeURIComponent(get('customer'))+'/value-rubric',
+   {headers:{'x-partner-id':get('partner'),'x-customer-value-token':get('customer-value-token')},cache:'no-store'});
+  const data=await response.json();if(!response.ok||!data.rubric)throw Error('Customer rubric unavailable');
+  const criterion=data.rubric.criteria.find(c=>c.enabled);
+  if(!criterion)throw Error('Enable a customer criterion first');
+  return {id,customerId:get('customer'),rubricRevision:data.rubric.revision,
+   title:description,outcomes:[{criterionId:criterion.id,baseline:Number(get('cavo-baseline')),
+    target:Number(get('cavo-target')),unit:get('cavo-outcome-unit'),evidence:get('cavo-evidence')}]};
+ }
+ if(kind==='recommendations')return {id,initiativeId:related,description,
+  forecastBenefitMinor:amount,assumptions:['Customer-defined forecast; not measured ROI']};
+ if(kind==='decisions')return {id,recommendationId:related,choice:get('cavo-choice'),
+  rationale:get('cavo-rationale'),customerActor:'CUSTOMER_TOKEN_HOLDER',at};
+ if(kind==='follow-ups'){
+  const implemented=get('cavo-implemented')==='true',evidence=get('cavo-evidence'),source=get('cavo-source');
+  const response=await fetch('/customers/'+encodeURIComponent(get('customer'))+'/value-rubric',
+   {headers:{'x-partner-id':get('partner'),'x-customer-value-token':get('customer-value-token')},cache:'no-store'});
+  const data=await response.json();if(!response.ok||!data.rubric)throw Error('Customer rubric unavailable');
+  const criterion=data.rubric.criteria.find(c=>c.enabled);
+  if(!criterion)throw Error('Enable a customer criterion first');
+  return {id,decisionId:related,implemented,at,actualCostMinor:amount,
+   evidence,sourceIds:source?[source]:[],outcomes:[{criterionId:criterion.id,
+    baseline:Number(get('cavo-baseline')),target:Number(get('cavo-target')),
+    actual:Number(get('cavo-actual')),unit:get('cavo-outcome-unit'),evidence,
+    ...(source?{sourceId:source}:{})}]};
+ }
+ if(kind==='costs')return {id,amountMinor:amount,currency:get('currency').toUpperCase(),
+  actorId:get('cavo-actor'),workflowId:get('cavo-workflow'),attempt:get('cavo-attempt'),
+  ruleId:related,ruleVersion:version};
+ return {id,version,method:'DIRECT',shares:{[get('cavo-unit')]:1}};
+}
 document.getElementById('cavo-template').addEventListener('click',async()=>{
  const status=document.getElementById('cavo-status');
- const id=get('cavo-record-id'),description=get('cavo-description'),related=get('cavo-related');
- const amount=Number(get('cavo-amount'));
- if(!id||!Number.isSafeInteger(amount)||amount<0){status.textContent='Valid event ID and amount required';return;}
- const kind=get('cavo-kind'),at=new Date().toISOString();let payload;
- if(kind==='initiatives'){
-  try{const response=await fetch('/customers/'+encodeURIComponent(get('customer'))+'/value-rubric',
-   {headers:{'x-partner-id':get('partner'),'x-customer-value-token':get('customer-value-token')},cache:'no-store'});
-   const data=await response.json();if(!response.ok||!data.rubric)throw Error('customer rubric unavailable');
-   payload={id,customerId:get('customer'),rubricRevision:data.rubric.revision,
-    title:description,outcomes:[]};
-  }catch(e){status.textContent='Cannot load customer rubric: '+e.message;return;}
- }else if(kind==='recommendations')payload={id,initiativeId:related,description,
-  forecastBenefitMinor:amount,assumptions:[]};
- else if(kind==='decisions')payload={id,recommendationId:related,choice:get('cavo-choice'),
-  rationale:get('cavo-rationale'),customerActor:'CUSTOMER_TOKEN_HOLDER',at};
- else if(kind==='follow-ups')payload={id,decisionId:related,implemented:true,at,
-  actualCostMinor:amount,evidence:'HYPOTHESIS',sourceIds:[],outcomes:[]};
- else if(kind==='costs')payload={id,amountMinor:amount,currency:get('currency').toUpperCase(),
-  actorId:'',workflowId:'',attempt:'SUCCESS',ruleId:related,ruleVersion:1};
- else payload={id,version:1,method:'DIRECT',shares:{}};
- document.getElementById('cavo-payload').value=JSON.stringify(payload,null,2);
- status.textContent='Template prepared; complete required fields and review before recording';
+ try{document.getElementById('cavo-payload').value=JSON.stringify(await cavoFormPayload(),null,2);
+  status.textContent='Review JSON before recording';}
+ catch(e){status.textContent='CAVO error: '+e.message;}
+});
+document.getElementById('cavo-submit-form').addEventListener('click',async()=>{
+ const status=document.getElementById('cavo-status');status.textContent='Saving';
+ try{const payload=await cavoFormPayload();const result=await cavoRequest(get('cavo-kind'),payload);
+  document.getElementById('cavo-payload').value=JSON.stringify(payload,null,2);
+  document.getElementById('cavo-result').textContent=JSON.stringify(result,null,2);
+  status.textContent='Event recorded';}
+ catch(e){status.textContent='CAVO error: '+e.message;}
 });
 document.getElementById('cavo-save').addEventListener('click',async()=>{
  const status=document.getElementById('cavo-status');status.textContent='Saving';

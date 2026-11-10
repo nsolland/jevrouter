@@ -104,3 +104,12 @@ test('portal offers explicitly synthetic full-cycle demonstration',async()=>{
  assert.match(partnerPortalJs,/cavoRequest\('follow-ups'/);
  assert.match(partnerPortalJs,/cavoRequest\('assessment\?decisionId='/);
 });
+
+test('customer portal CAVO form can submit without editing JSON and its script parses',async()=>{
+ const {Script}=await import('node:vm');
+ const {partnerPortalHtml,partnerPortalJs}=await import('../src/partner-portal.js');
+ assert.doesNotThrow(()=>new Script(partnerPortalJs));
+ assert.match(partnerPortalHtml,/id="cavo-submit-form"/);
+ assert.match(partnerPortalJs,/async function cavoFormPayload/);
+ assert.match(partnerPortalJs,/await cavoRequest\(get\('cavo-kind'\),payload\)/);
+});
