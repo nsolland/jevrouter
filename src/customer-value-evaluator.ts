@@ -3,7 +3,8 @@
  */
 import type {SpendRecord} from './spend-intelligence.js';
 import {createHash} from 'node:crypto';
-export type ValueCriterion={id:string;label:string;description?:string;weight:number;enabled:boolean;
+export type ValueCriterion={id:string;label:string;description?:string;measurementMethod?:string;target?:string;
+ measurementType?:'quantitative'|'qualitative';weight:number;enabled:boolean;
  metric:string;
  minimumEvidence:'measured'|'customer_attested'|'hypothesis'};
 export type ValueRubric={partnerId:string;customerId:string;revision:number;
@@ -33,6 +34,9 @@ export function evaluateCustomerValue(args:{partnerId:string;customerId:string;
  for(const c of rubric.criteria){
   if(!c.id||criterionIds.has(c.id)||!c.label||c.label.length>160||
    (c.description!==undefined&&(typeof c.description!=='string'||c.description.length>2000))||
+   (c.measurementMethod!==undefined&&(typeof c.measurementMethod!=='string'||c.measurementMethod.length>2000))||
+   (c.target!==undefined&&(typeof c.target!=='string'||c.target.length>500))||
+   (c.measurementType!==undefined&&!['quantitative','qualitative'].includes(c.measurementType))||
    !validMetric(c.metric)||
    !Number.isFinite(c.weight)||c.weight<0||c.weight>100||
    !(c.minimumEvidence in evidenceRank))throw Error('invalid_value_criterion');

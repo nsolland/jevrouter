@@ -58,3 +58,19 @@ test('customer can introduce an entirely new value metric and control its weight
  assert.equal(result.findings[0].normalizedCustomerWeightPct,80);
  assert.equal(result.findings[0].status,'ELIGIBLE_FOR_CUSTOMER_DECISION');
 });
+
+test('customer-owned strategic ambition and human-agent and culture outcomes can use qualitative evidence',async()=>{
+ const {evaluateCustomerValue}=await import('../src/customer-value-evaluator.js');
+ const metrics=['strategic_ambition','human_agent_teams','adoption_culture'];
+ const criteria=metrics.map((metric,i)=>({id:metric,label:metric,description:'Customer outcome',
+  measurementType:'qualitative' as const,measurementMethod:'Customer interview',target:'Customer-defined',
+  metric,weight:i===0?60:20,enabled:true,minimumEvidence:'customer_attested' as const}));
+ const records=[{id:'r',tenantId:'c',provider:'p',amountMinor:100,currency:'USD',
+  occurredAt:'2026-11-10T12:00:00Z',actorId:'a',department:'d',useCase:'w',model:'m'}];
+ const result=evaluateCustomerValue({partnerId:'p',customerId:'c',records,
+  rubric:{partnerId:'p',customerId:'c',revision:1,owner:'CUSTOMER',criteria},
+  signals:metrics.map((metric,i)=>({id:String(i),actorId:'a',useCase:'w',metric,
+   description:'Customer interview signal',evidence:'customer_attested' as const}))});
+ assert.deepEqual(result.findings.map(f=>f.normalizedCustomerWeightPct),[60,20,20]);
+ assert.equal(result.authority,'ADVISORY_ONLY');
+});

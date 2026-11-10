@@ -46,8 +46,14 @@ No slider changes the underlying measurements or makes a hypothesis true.</p>
 <div id="weight-controls"></div>
 <label>New criterion name<input id="new-value-label" placeholder="E.g. employee wellbeing"></label>
 <label>What does this mean to your organization?<input id="new-value-description" placeholder="Customer-defined outcome"></label>
+<label>Measurement method<input id="new-value-method" placeholder="How will the customer assess this?"></label>
+<label>Target<input id="new-value-target" placeholder="Customer-defined target"></label>
+<label>Measurement type<select id="new-value-type"><option value="qualitative">Qualitative</option><option value="quantitative">Quantitative</option></select></label>
 <button type="button" id="add-value-criterion">Add custom criterion</button>
 <button type="button" id="default-weights">Load editable example weights</button>
+<button type="button" id="leadership-template">Add leadership opportunity examples</button>
+<p>Optional leadership examples: strategic ambition, human-agent organization, and culture.
+These are not predefined success measures; customer sets targets and evidence.</p>
 <label>Criteria JSON (advanced)<textarea id="value-criteria" rows="7" style="width:100%" spellcheck="false">[{"id":"quality","label":"Quality","weight":100,"enabled":true,"metric":"quality","minimumEvidence":"measured"}]</textarea></label>
 <button type="button" id="save-rubric">Save customer criteria</button>
 <button type="button" id="rubric-history">View revision history</button>
@@ -144,16 +150,37 @@ document.getElementById('default-weights').addEventListener('click',()=>{
 });
 document.getElementById('add-value-criterion').addEventListener('click',()=>{
  const name=get('new-value-label').trim(),description=get('new-value-description').trim();
+ const measurementMethod=get('new-value-method').trim(),target=get('new-value-target').trim();
+ const measurementType=get('new-value-type');
  const status=document.getElementById('rubric-status');
- if(!name||name.length>160||description.length>2000){status.textContent='Enter a valid criterion name';return;}
+ if(!name||name.length>160||description.length>2000||measurementMethod.length>2000||target.length>500){status.textContent='Enter a valid criterion name';return;}
  let criteria;try{criteria=JSON.parse(get('value-criteria'));if(!Array.isArray(criteria))throw Error();}
  catch{status.textContent='Fix criteria JSON before adding';return;}
  if(criteria.length>=50){status.textContent='Maximum 50 criteria';return;}
  const id='custom_'+Math.random().toString(36).slice(2,12);
- criteria.push({id,label:name,description,metric:id,weight:10,enabled:true,
+ criteria.push({id,label:name,description,measurementMethod,target,measurementType,metric:id,weight:10,enabled:true,
   minimumEvidence:'customer_attested'});
  syncWeights(criteria);document.getElementById('new-value-label').value='';
- document.getElementById('new-value-description').value='';status.textContent='Criterion added; save to apply';
+ document.getElementById('new-value-description').value='';
+ document.getElementById('new-value-method').value='';document.getElementById('new-value-target').value='';status.textContent='Criterion added; save to apply';
+});
+document.getElementById('leadership-template').addEventListener('click',()=>{
+ const status=document.getElementById('rubric-status');
+ let criteria;try{criteria=JSON.parse(get('value-criteria'));if(!Array.isArray(criteria))throw Error();}
+ catch{status.textContent='Fix criteria JSON first';return;}
+ const examples=[
+  ['strategic_ambition','Strategic ambition','Where to invest and how to build, own and protect proprietary intelligence'],
+  ['human_agent_teams','Human-agent organization','Redesign work and collaboration between people and agents'],
+  ['adoption_culture','AI adoption culture','Human and organizational barriers to AI adoption']
+ ];
+ for(const [id,label,description] of examples){
+  if(criteria.some(c=>c.id===id||c.metric===id))continue;
+  if(criteria.length>=50){status.textContent='Maximum 50 criteria';break;}
+  criteria.push({id,label,description,metric:id,weight:10,enabled:false,
+   measurementType:'qualitative',measurementMethod:'',target:'',
+   minimumEvidence:'customer_attested'});
+ }
+ syncWeights(criteria);status.textContent='Examples added as disabled. Define customer targets, evidence and weights before enabling.';
 });
 document.getElementById('value-criteria').addEventListener('input',renderWeights);
 renderWeights();
