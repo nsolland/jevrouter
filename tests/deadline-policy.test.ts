@@ -21,4 +21,7 @@ test("quality and verification fail closed",()=>{
 test("budget and invalid policy",()=>{
  assert.equal(selectDeadlineRoute({urgency:"fast",minQuality:0.9,maxCostUsd:0.2},candidates).status,"abstain");
  assert.throws(()=>selectDeadlineRoute({urgency:"fast",minQuality:0.9,deadlineMs:-1},candidates),RangeError);
+ assert.throws(()=>selectDeadlineRoute({urgency:"invalid" as never,minQuality:0.9},candidates),RangeError);
+ assert.equal(selectDeadlineRoute({urgency:"can_wait",minQuality:0.9},
+   [{...candidates[0],estimatedQuality:1.2}]).status,"abstain");
 });
