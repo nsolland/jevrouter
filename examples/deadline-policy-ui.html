@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JevRouter | Customer Execution Priority</title>
+<style>body{font:16px system-ui;background:#101722;color:#f4f7fc;max-width:650px;margin:7vh auto;padding:24px}main{border:1px solid #40516b;border-radius:18px;padding:28px}label{display:block;margin:20px 0 8px}input,select,button{font:inherit}input[type=range]{width:100%}input[type=number]{padding:10px;width:180px;background:#19283b;color:white;border:1px solid #53657c;border-radius:8px}button{padding:12px;background:#c5e2ff;border:0;border-radius:8px;cursor:pointer}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#19283b;padding:16px;border-radius:8px}small{color:#b6c5d6}</style>
+<main><h1>AI Execution Priority</h1><p>Customer-owned latency, cost and quality policy. Estimates are not guarantees.</p>
+<label for="priority">Priority: <strong id="mode">Balanced</strong></label>
+<input id="priority" type="range" min="0" max="4" step="1" value="2">
+<small id="hint">Within 2 minutes</small>
+<label for="deadline">Maximum duration (seconds)</label><input id="deadline" type="number" min="1" step="1" value="120">
+<label for="quality">Minimum accepted quality (0–1)</label><input id="quality" type="number" min="0" max="1" step=".01" value=".9">
+<label for="budget">Maximum USD per task (optional)</label><input id="budget" type="number" min="0" step=".01" placeholder="No cap">
+<label for="timevalue">Value of waiting (USD per minute)</label><input id="timevalue" type="number" min="0" step=".01" value="0">
+<p><button id="copy">Copy policy JSON</button> <span id="status" role="status"></span></p>
+<pre id="output" aria-live="polite"></pre>
+</main>
+<script>
+const presets=[["immediate","Immediate",5],["fast","Fast",30],["balanced","Balanced",120],["can_wait","Can wait",600],["background","Background",3600]];
+const $=id=>document.getElementById(id);
+function update(){
+ const [urgency,name,seconds]=presets[Number($("priority").value)];
+ $("mode").textContent=name;$("hint").textContent="Suggested deadline: "+seconds+" seconds";
+ const duration=Number($("deadline").value),quality=Number($("quality").value),budget=$("budget").value,timeValue=Number($("timevalue").value);
+ const valid=Number.isFinite(duration)&&duration>0&&Number.isFinite(quality)&&quality>=0&&quality<=1&&Number.isFinite(timeValue)&&timeValue>=0&&(!budget||(Number.isFinite(Number(budget))&&Number(budget)>=0));
+ $("copy").disabled=!valid;
+ $("output").textContent=valid?JSON.stringify({urgency,deadlineMs:duration*1000,minQuality:quality,valuePerMinuteUsd:timeValue,...(budget?{maxCostUsd:Number(budget)}:{})},null,2):"Invalid policy values";
+ $("status").textContent=valid?"":"Check numeric limits";
+}
+$("priority").addEventListener("input",()=>{$("deadline").value=presets[Number($("priority").value)][2];update()});
+for(const id of ["deadline","quality","budget","timevalue"])$(id).addEventListener("input",update);
+$("copy").addEventListener("click",async()=>{try{await navigator.clipboard.writeText($("output").textContent);$("status").textContent="Copied"}catch{$("status").textContent="Select and copy the JSON manually"}});
+update();
+</script></html>
