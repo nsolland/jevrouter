@@ -33,3 +33,21 @@ test('customer-led closed-loop keeps forecast distinct from customer reported va
   at:'2026-11-11T12:00:00Z',actualCostMinor:1,realizedBenefitMinor:1,
   evidence:'HYPOTHESIS',sourceIds:[],outcomes:[]}),/invalid_follow_up/);
 });
+
+test('persistent CAVO snapshot restores verified history and rejects tenant swap and tampering',async()=>{
+ const {mkdtemp,readFile,writeFile,stat}=await import('node:fs/promises');
+ const {join}=await import('node:path');
+ const {tmpdir}=await import('node:os');
+ const {CavoDecisionFileStore}=await import('../src/cavo-decision-loop.js');
+ const file=join(await mkdtemp(join(tmpdir(),'cavo-store-')),'events.json');
+ const store=new CavoDecisionFileStore(file);
+ await store.transact('customer-a',loop=>loop.addInitiative({id:'i',customerId:'customer-a',
+  rubricRevision:1,title:'Customer outcome',outcomes:[]}));
+ assert.equal((await store.load('customer-a')).audit().count,1);
+ assert.equal((await stat(file)).mode&0o077,0);
+ await assert.rejects(()=>store.load('customer-b'),/cavo_customer_scope_denied/);
+ const snapshot=JSON.parse(await readFile(file,'utf8'));
+ snapshot.events[0].payload.title='Manipulated';
+ await writeFile(file,JSON.stringify(snapshot));
+ await assert.rejects(()=>store.load('customer-a'),/invalid_cavo_snapshot/);
+});

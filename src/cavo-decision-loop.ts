@@ -1,7 +1,9 @@
 /** Customer-authoritative CAVO decision and benefit follow-up.
  * Monetary amounts are minor units; observed outcomes never imply causal ROI.
  */
-import {createHash} from 'node:crypto';
+import {createHash,randomBytes} from 'node:crypto';
+import {readFile,writeFile,rename,mkdir} from 'node:fs/promises';
+import {dirname} from 'node:path';
 export type EvidenceLevel='HYPOTHESIS'|'CUSTOMER_ATTESTED'|'MEASURED';
 export type Outcome={criterionId:string;baseline:number|string;target:number|string;
  actual?:number|string;unit:string;evidence:EvidenceLevel;sourceId?:string};
@@ -25,6 +27,28 @@ const validAmount=(n:number)=>Number.isSafeInteger(n)&&n>=0;
 const hash=(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 export class CavoDecisionLoop{
  private events:Event[]=[];
+ static restore(customerId:string,events:Event[]):CavoDecisionLoop{
+  const loop=new CavoDecisionLoop(customerId);
+  if(!Array.isArray(events))throw Error('invalid_cavo_snapshot');
+  for(const event of events){
+   if(!event||event.seq!==loop.events.length+1||event.previousHash!==(loop.events.at(-1)?.hash??'GENESIS'))
+    throw Error('invalid_cavo_snapshot');
+   const {hash:expected,...data}=event;
+   if(hash(data)!==expected)throw Error('invalid_cavo_snapshot');
+   const v=event.payload;
+   switch(event.kind){
+    case 'INITIATIVE':loop.addInitiative(v as Initiative);break;
+    case 'ALLOCATION_RULE':loop.addAllocationRule(v as AllocationRule);break;
+    case 'COST':loop.addCost(v as CostEvent);break;
+    case 'RECOMMENDATION':loop.recommend(v as Recommendation);break;
+    case 'DECISION':loop.customerDecision(v as CustomerDecision);break;
+    case 'FOLLOW_UP':loop.followUp(v as FollowUp);break;
+    default:throw Error('invalid_cavo_snapshot');
+   }
+   if(loop.events.at(-1)?.hash!==expected)throw Error('invalid_cavo_snapshot');
+  }
+  return loop;
+ }
  private ids=new Set<string>();
  private initiatives=new Map<string,Initiative>();
  private rules=new Map<string,AllocationRule>();
@@ -121,5 +145,32 @@ export class CavoDecisionLoop{
   }
   return {valid:true,count:this.events.length,headHash:previousHash,
    events:structuredClone(this.events)};
+ }
+}
+
+/** Atomic single-process snapshot persistence. No distributed lock or external notarization. */
+export class CavoDecisionFileStore{
+ private static locks=new Map<string,Promise<void>>();
+ constructor(private readonly file:string){}
+ async load(customerId:string):Promise<CavoDecisionLoop>{
+  try{
+   const data=JSON.parse(await readFile(this.file,'utf8')) as {customerId:string;events:Event[]};
+   if(data.customerId!==customerId)throw Error('cavo_customer_scope_denied');
+   return CavoDecisionLoop.restore(customerId,data.events);
+  }catch(e){if((e as NodeJS.ErrnoException).code==='ENOENT')return new CavoDecisionLoop(customerId);throw e;}
+ }
+ async transact<T>(customerId:string,fn:(loop:CavoDecisionLoop)=>T):Promise<T>{
+  const prior=CavoDecisionFileStore.locks.get(this.file)??Promise.resolve();
+  let release!:()=>void;const gate=new Promise<void>(r=>release=r);
+  const next=prior.then(()=>gate);CavoDecisionFileStore.locks.set(this.file,next);
+  await prior;
+  try{
+   const loop=await this.load(customerId),result=fn(loop);
+   const events=loop.audit();if(!events.valid)throw Error('invalid_cavo_audit');
+   await mkdir(dirname(this.file),{recursive:true,mode:0o700});
+   const temp=this.file+'.'+randomBytes(12).toString('hex')+'.tmp';
+   await writeFile(temp,JSON.stringify({customerId,events:events.events}),{flag:'wx',mode:0o600});
+   await rename(temp,this.file);return result;
+  }finally{release();if(CavoDecisionFileStore.locks.get(this.file)===next)CavoDecisionFileStore.locks.delete(this.file);}
  }
 }
