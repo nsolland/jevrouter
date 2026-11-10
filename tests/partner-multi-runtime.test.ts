@@ -38,6 +38,9 @@ test('two independently branded partners and three customers share runtime witho
    const headers={'x-partner-id':partnerId,authorization:'Bearer '+tokens[partnerId as 'alpha'|'beta']};
    const response=await fetch(base+'/reports/'+customerId+
     '?from=2026-11-01&to=2026-11-30&currency=USD',{headers});
+   const sources=await fetch(base+'/customers/'+customerId+'/sources',{headers});
+   assert.equal(sources.status,200);
+   assert.deepEqual((await sources.json()).sources,['invoices']);
    assert.equal(response.status,200);
    const result=await response.json();
    assert.equal(result.product,partnerId+' Spend');
@@ -45,6 +48,12 @@ test('two independently branded partners and three customers share runtime witho
    const history=await fetch(base+'/reports/'+customerId+'/history',{headers});
    assert.equal((await history.json()).snapshots.length,1);
   }
+  const missing=await fetch(base+'/customers/not-configured/sources',{headers:{
+   'x-partner-id':'alpha',authorization:'Bearer '+tokens.alpha}});
+  assert.equal(missing.status,404);
+  const denied=await fetch(base+'/customers/shared/sources',{headers:{
+   'x-partner-id':'alpha',authorization:'Bearer '+tokens.beta}});
+  assert.equal(denied.status,401);
   assert.deepEqual(calls,['alpha/shared','alpha/second','beta/shared']);
   const wrong=await fetch(base+'/reports/second/history',{headers:{
    'x-partner-id':'beta',authorization:'Bearer '+tokens.beta}});

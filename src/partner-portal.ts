@@ -19,6 +19,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere}.warning{color:#8b3500;font-weig
 <div class="grid"><label>Customer ID<input id="new-customer" required></label>
 <label>Customer name<input id="customer-name" required></label></div>
 <button type="submit">Create customer</button></form><p id="customer-status" role="status"></p></section>
+<section><h2>Customer data sources</h2><button type="button" id="check-sources">Check configured sources</button><p id="source-status" role="status"></p></section>
 <section><h2>Cost report</h2><form id="report"><div class="grid">
 <label>Customer ID<input id="customer" required></label>
 <label>From<input id="from" type="date" required></label>
@@ -45,6 +46,14 @@ document.getElementById('load-partner').addEventListener('click',async()=>{
  option.textContent=customer.displayName+' ('+customer.customerId+')';select.append(option);}
  select.addEventListener('change',()=>{document.getElementById('customer').value=select.value;});workspace.append(select);
  }catch{status.textContent='Partner workspace unavailable';}
+});
+document.getElementById('check-sources').addEventListener('click',async()=>{
+ const status=document.getElementById('source-status');status.textContent='Checking';
+ try{const response=await fetch('/customers/'+encodeURIComponent(get('customer'))+'/sources',
+  {headers:headers(),cache:'no-store'});const data=await response.json();
+  status.textContent=response.ok?(data.configured?'Configured: '+data.sources.join(', '):
+   'No data sources configured for this customer'):'Source error: '+(data.error??response.status);
+ }catch{status.textContent='Source status unavailable';}
 });
 document.getElementById('load-history').addEventListener('click',async()=>{
  const status=document.getElementById('history-status'),container=document.getElementById('history');

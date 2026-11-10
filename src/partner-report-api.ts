@@ -14,7 +14,8 @@ const validDate=(s:string)=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&
   !Number.isNaN(Date.parse(s))&&new Date(s+'T00:00:00Z').toISOString().slice(0,10)===s;
 export function createPartnerReportApi(registry:PartnerRegistry,
  adapterFor:(partnerId:string,customerId:string,from:string,to:string)=>Promise<ReadOnlySpendAdapter>,
- history?:PartnerReportHistory){
+ history?:PartnerReportHistory,
+ sourceStatus?:(partnerId:string,customerId:string)=>string[]){
  const control=createPartnerControlHandler(registry);
  return createServer(async(req,res)=>{
   const send=(status:number,payload:unknown)=>{
@@ -28,6 +29,18 @@ export function createPartnerReportApi(registry:PartnerRegistry,
      'cache-control':'no-store','x-content-type-options':'nosniff',
      'content-security-policy':"default-src 'none'; script-src 'self'; style-src 'sha256-"+portalStyleHash+"'; connect-src 'self'; base-uri 'none'; form-action 'none'"});
     res.end(js?partnerPortalJs:partnerPortalHtml);return;
+   }
+   const sourcesMatch=/^\/customers\/([a-zA-Z0-9_-]{1,128})\/sources$/.exec(url.pathname);
+   if(req.method==='GET'&&sourcesMatch){
+    const partnerId=req.headers['x-partner-id'];
+    const auth=req.headers.authorization;
+    if(typeof partnerId!=='string'||!auth?.startsWith('Bearer ')){
+     send(401,{error:'unauthorized'});return;
+    }
+    await registry.customer(partnerId,auth.slice(7),sourcesMatch[1]);
+    const sources=sourceStatus?.(partnerId,sourcesMatch[1])??[];
+    send(200,{customerId:sourcesMatch[1],configured:sources.length>0,
+     sources,credentialsExposed:false});return;
    }
    const historyMatch=/^\/reports\/([a-zA-Z0-9_-]{1,128})\/history$/.exec(url.pathname);
    if(req.method==='GET'&&historyMatch){
