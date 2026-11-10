@@ -74,3 +74,13 @@ test('configured service wires CAVO persistence by customer',async()=>{
   assert.equal(((await res.json()) as {valid:boolean}).valid,true);
  }finally{await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));}
 });
+
+test('portal exposes CAVO assisted event preparation without storing credentials',async()=>{
+ const {partnerPortalHtml,partnerPortalJs}=await import('../src/partner-portal.js');
+ assert.match(partnerPortalHtml,/id="cavo-template"/);
+ assert.match(partnerPortalHtml,/id="cavo-record-id"/);
+ assert.match(partnerPortalHtml,/id="cavo-rationale"/);
+ assert.match(partnerPortalJs,/rubricRevision:data.rubric.revision/);
+ assert.match(partnerPortalJs,/customer-value-token/);
+ assert.doesNotMatch(partnerPortalJs,/localStorage|sessionStorage/);
+});

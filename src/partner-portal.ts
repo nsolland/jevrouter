@@ -70,6 +70,14 @@ Customer value criteria require separate organizational verification.</p>
 <section><h2>CAVO decision and benefit follow-up</h2>
 <p>Customer credential required. Values are customer-reported, not independently proven causal ROI.</p>
 <label>Event type<select id="cavo-kind"><option value="initiatives">Initiative</option><option value="allocation-rules">Allocation rule</option><option value="costs">Cost event</option><option value="recommendations">Recommendation</option><option value="decisions">Customer decision</option><option value="follow-ups">Follow-up</option></select></label>
+<div class="grid"><label>Record ID<input id="cavo-record-id" placeholder="Unique event ID"></label>
+<label>Title or description<input id="cavo-description" placeholder="Initiative or recommendation"></label>
+<label>Related ID<input id="cavo-related" placeholder="Initiative / recommendation / decision ID"></label>
+<label>Amount (minor units)<input id="cavo-amount" type="number" min="0" step="1" value="0"></label>
+<label>Customer rationale<input id="cavo-rationale" placeholder="Why this decision?"></label>
+<label>Decision<select id="cavo-choice"><option value="PROCEED">Proceed</option><option value="DEFER">Defer</option><option value="REJECT">Reject</option></select></label></div>
+<button type="button" id="cavo-template">Prepare event from fields</button>
+<p>Review the generated JSON before recording. Initiatives must reference the customer's approved rubric and outcomes.</p>
 <label>Event JSON<textarea id="cavo-payload" rows="8" style="width:100%" spellcheck="false">{}</textarea></label>
 <button type="button" id="cavo-save">Record event</button>
 <button type="button" id="cavo-audit">View history</button>
@@ -98,6 +106,31 @@ for(const [id,path] of [['cavo-audit','audit'],['cavo-assessment','assessment']]
   catch(e){status.textContent='CAVO error: '+e.message;}
  });
 }
+document.getElementById('cavo-template').addEventListener('click',async()=>{
+ const status=document.getElementById('cavo-status');
+ const id=get('cavo-record-id'),description=get('cavo-description'),related=get('cavo-related');
+ const amount=Number(get('cavo-amount'));
+ if(!id||!Number.isSafeInteger(amount)||amount<0){status.textContent='Valid event ID and amount required';return;}
+ const kind=get('cavo-kind'),at=new Date().toISOString();let payload;
+ if(kind==='initiatives'){
+  try{const response=await fetch('/customers/'+encodeURIComponent(get('customer'))+'/value-rubric',
+   {headers:{'x-partner-id':get('partner'),'x-customer-value-token':get('customer-value-token')},cache:'no-store'});
+   const data=await response.json();if(!response.ok||!data.rubric)throw Error('customer rubric unavailable');
+   payload={id,customerId:get('customer'),rubricRevision:data.rubric.revision,
+    title:description,outcomes:[]};
+  }catch(e){status.textContent='Cannot load customer rubric: '+e.message;return;}
+ }else if(kind==='recommendations')payload={id,initiativeId:related,description,
+  forecastBenefitMinor:amount,assumptions:[]};
+ else if(kind==='decisions')payload={id,recommendationId:related,choice:get('cavo-choice'),
+  rationale:get('cavo-rationale'),customerActor:'CUSTOMER_TOKEN_HOLDER',at};
+ else if(kind==='follow-ups')payload={id,decisionId:related,implemented:true,at,
+  actualCostMinor:amount,evidence:'HYPOTHESIS',sourceIds:[],outcomes:[]};
+ else if(kind==='costs')payload={id,amountMinor:amount,currency:get('currency').toUpperCase(),
+  actorId:'',workflowId:'',attempt:'SUCCESS',ruleId:related,ruleVersion:1};
+ else payload={id,version:1,method:'DIRECT',shares:{}};
+ document.getElementById('cavo-payload').value=JSON.stringify(payload,null,2);
+ status.textContent='Template prepared; complete required fields and review before recording';
+});
 document.getElementById('cavo-save').addEventListener('click',async()=>{
  const status=document.getElementById('cavo-status');status.textContent='Saving';
  try{const payload=JSON.parse(get('cavo-payload'));
