@@ -77,6 +77,8 @@ Customer value criteria require separate organizational verification.</p>
 <label>Customer rationale<input id="cavo-rationale" placeholder="Why this decision?"></label>
 <label>Decision<select id="cavo-choice"><option value="PROCEED">Proceed</option><option value="DEFER">Defer</option><option value="REJECT">Reject</option></select></label></div>
 <button type="button" id="cavo-template">Prepare event from fields</button>
+<button type="button" id="cavo-run-synthetic">Run synthetic full-cycle demo</button>
+<p>Demo creates explicitly labeled synthetic records in this customer's workspace. Use only a test customer.</p>
 <p>Review the generated JSON before recording. Initiatives must reference the customer's approved rubric and outcomes.</p>
 <label>Event JSON<textarea id="cavo-payload" rows="8" style="width:100%" spellcheck="false">{}</textarea></label>
 <button type="button" id="cavo-save">Record event</button>
@@ -106,6 +108,36 @@ for(const [id,path] of [['cavo-audit','audit'],['cavo-assessment','assessment']]
   catch(e){status.textContent='CAVO error: '+e.message;}
  });
 }
+document.getElementById('cavo-run-synthetic').addEventListener('click',async()=>{
+ const status=document.getElementById('cavo-status');status.textContent='Running synthetic test cycle';
+ try{
+  const response=await fetch('/customers/'+encodeURIComponent(get('customer'))+'/value-rubric',
+   {headers:{'x-partner-id':get('partner'),'x-customer-value-token':get('customer-value-token')},cache:'no-store'});
+  const data=await response.json();if(!response.ok||!data.rubric?.criteria?.length)throw Error('Customer rubric required');
+  const criterion=data.rubric.criteria.find(c=>c.enabled);
+  if(!criterion)throw Error('Enable a customer criterion first');
+  const prefix='synthetic-'+Date.now()+'-'+Math.random().toString(36).slice(2,8);
+  const at=new Date().toISOString(),initiative=prefix+'-initiative',recommendation=prefix+'-recommendation',decision=prefix+'-decision';
+  const outcome={criterionId:criterion.id,baseline:50,target:60,unit:'synthetic-points',
+   evidence:'HYPOTHESIS'};
+  await cavoRequest('initiatives',{id:initiative,customerId:get('customer'),
+   rubricRevision:data.rubric.revision,title:'SYNTHETIC DEMO: customer value improvement',outcomes:[outcome]});
+  await cavoRequest('recommendations',{id:recommendation,initiativeId:initiative,
+   description:'SYNTHETIC DEMO: evaluate alternative AI workflow',forecastBenefitMinor:10000,
+   forecastCostMinor:2500,assumptions:['Synthetic numbers only','No causal inference']});
+  await cavoRequest('decisions',{id:decision,recommendationId:recommendation,
+   choice:'PROCEED',rationale:'SYNTHETIC DEMO: customer approval simulation',
+   customerActor:'SYNTHETIC_TEST',at});
+  await cavoRequest('follow-ups',{id:prefix+'-followup',decisionId:decision,
+   implemented:true,at,actualCostMinor:3000,realizedBenefitMinor:4000,
+   evidence:'CUSTOMER_ATTESTED',sourceIds:[prefix+'-synthetic-source'],
+   outcomes:[{...outcome,actual:55,evidence:'CUSTOMER_ATTESTED'}]});
+  const result=await cavoRequest('assessment?decisionId='+encodeURIComponent(decision));
+  document.getElementById('cavo-decision-id').value=decision;
+  document.getElementById('cavo-result').textContent=JSON.stringify(result,null,2);
+  status.textContent='SYNTHETIC DEMO COMPLETE. Not real evidence or verified ROI.';
+ }catch(e){status.textContent='Synthetic demo failed: '+e.message;}
+});
 document.getElementById('cavo-template').addEventListener('click',async()=>{
  const status=document.getElementById('cavo-status');
  const id=get('cavo-record-id'),description=get('cavo-description'),related=get('cavo-related');
