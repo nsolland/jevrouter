@@ -39,6 +39,24 @@ test('customer-only credential owns rubric, partner token cannot change it',asyn
   assert.equal(result.rubric.criteria[0].metric,'quality');
   assert.equal((await fetch(url,{headers:{'x-partner-id':'p',
    'x-customer-value-token':partnerToken}})).status,401);
+  const headers={'x-partner-id':'p','x-customer-value-token':customerToken};
+  const history=await fetch(url.replace('value-rubric','value-history'),{headers});
+  assert.equal(history.status,200);
+  assert.equal(((await history.json()) as {items:unknown[]}).items.length,1);
+  const {proposeValueHypotheses}=await import('../src/customer-value-evaluator.js');
+  const signal=proposeValueHypotheses([{id:'1',tenantId:'c',provider:'p',amountMinor:100,
+   currency:'USD',occurredAt:'2026-11-10T12:00:00Z',actorId:'a',department:'d',
+   useCase:'work',model:'m'}],'c')[0];
+  const decisionUrl=url.replace('value-rubric','value-decisions');
+  const decisionBody=JSON.stringify({signalId:signal.id,decision:'REJECT',
+   rationale:'Customer prioritizes quality over lower spend',expectedRevision:1});
+  assert.equal((await fetch(decisionUrl,{method:'POST',headers:{...headers,
+   'content-type':'application/json'},body:decisionBody})).status,200);
+  assert.equal((await fetch(decisionUrl,{method:'POST',headers:{'x-partner-id':'p',
+   'x-customer-value-token':partnerToken,'content-type':'application/json'},
+   body:decisionBody})).status,401);
+  const decisions=await fetch(decisionUrl,{headers});
+  assert.equal(((await decisions.json()) as {items:Array<{decision:string}>}).items[0].decision,'REJECT');
   assert.equal((await stat(file)).mode&0o077,0);
  }finally{await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));}
 });

@@ -39,6 +39,27 @@ export function createPartnerReportApi(registry:PartnerRegistry,
      'content-security-policy':"default-src 'none'; script-src 'self'; style-src 'sha256-"+portalStyleHash+"'; connect-src 'self'; base-uri 'none'; form-action 'none'"});
     res.end(js?partnerPortalJs:partnerPortalHtml);return;
    }
+   const valueControl=/^\/customers\/([a-zA-Z0-9_-]{1,128})\/value-(history|decisions)$/.exec(url.pathname);
+   if(valueControl&&(req.method==='GET'||req.method==='POST')){
+    if(!customerValueStore){send(404,{error:'customer_value_store_not_configured'});return;}
+    const partnerId=req.headers['x-partner-id'],token=req.headers['x-customer-value-token'];
+    if(typeof partnerId!=='string'||typeof token!=='string'||!token){
+     send(401,{error:'customer_value_auth_required'});return;}
+    if(req.method==='GET'){
+     const result=valueControl[2]==='history'?
+      await customerValueStore.history(partnerId,valueControl[1],token):
+      await customerValueStore.decisions(partnerId,valueControl[1],token);
+     send(200,{items:result});return;
+    }
+    if(valueControl[2]!=='decisions'){send(405,{error:'method_not_allowed'});return;}
+    let raw='';for await(const chunk of req){raw+=chunk.toString();
+     if(raw.length>8192){send(413,{error:'decision_too_large'});return;}}
+    const body=JSON.parse(raw) as {signalId:string;decision:'ACCEPT'|'REJECT'|'NEEDS_EVIDENCE';
+     rationale:string;expectedRevision:number};
+    const result=await customerValueStore.decideSignal(partnerId,valueControl[1],token,
+     body.signalId,body.decision,body.rationale,body.expectedRevision);
+    send(200,{decision:result});return;
+   }
    const rubricMatch=/^\/customers\/([a-zA-Z0-9_-]{1,128})\/value-rubric$/.exec(url.pathname);
    if(rubricMatch&&(req.method==='GET'||req.method==='PUT')){
     if(!customerValueStore){send(404,{error:'customer_value_store_not_configured'});return;}
@@ -117,7 +138,8 @@ export function createPartnerReportApi(registry:PartnerRegistry,
      evaluation:null,notice:'No verified customer rubric. Hypotheses are not accepted customer value.'});return;}
     send(200,{authority:'ADVISORY_ONLY',rubricStatus:'CUSTOMER_RUBRIC_SUPPLIED',hypotheses,
      evaluation:evaluateCustomerValue({partnerId,customerId:valueMatch[1],rubric,
-      records,signals:hypotheses})});return;
+      records,signals:hypotheses}),
+     customerDecisions:customerValueStore?await customerValueStore.listDecisions(partnerId,valueMatch[1]):[]});return;
    }
    const historyMatch=/^\/reports\/([a-zA-Z0-9_-]{1,128})\/history$/.exec(url.pathname);
    if(req.method==='GET'&&historyMatch){
@@ -169,7 +191,9 @@ export function createPartnerReportApi(registry:PartnerRegistry,
    const message=(e as Error).message;
    const status=message==='customer_value_auth_denied'?401:
     message==='rubric_revision_conflict'?409:
-    message==='invalid_customer_rubric'||message==='invalid_value_criterion'?400:
+    message==='invalid_customer_rubric'||message==='invalid_value_criterion'||
+    message==='invalid_value_decision'?400:
+    message==='customer_rubric_required'?422:
     message==='actor_attribution_missing'?422:
     message==='partner_auth_denied'?401:
     message==='customer_scope_denied'?404:

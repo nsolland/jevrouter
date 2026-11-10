@@ -42,7 +42,14 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere}.warning{color:#8b3500;font-weig
 <label>Customer value token (not stored)<input id="customer-value-token" type="password" autocomplete="off"></label>
 <button type="button" id="load-rubric">Load customer criteria</button>
 <label>Criteria JSON (customer-controlled)<textarea id="value-criteria" rows="7" style="width:100%" spellcheck="false">[{"id":"quality","label":"Quality","weight":100,"enabled":true,"metric":"quality","minimumEvidence":"measured"}]</textarea></label>
-<button type="button" id="save-rubric">Save customer criteria</button><p id="rubric-status" role="status"></p>
+<button type="button" id="save-rubric">Save customer criteria</button>
+<button type="button" id="rubric-history">View revision history</button>
+<label>Hypothesis ID<input id="decision-signal" placeholder="opportunity-..."></label>
+<label>Customer decision<select id="decision-choice"><option value="NEEDS_EVIDENCE">Needs evidence</option><option value="ACCEPT">Accept for review</option><option value="REJECT">Reject</option></select></label>
+<label>Reason<input id="decision-reason" placeholder="Customer rationale"></label>
+<button type="button" id="save-decision">Record customer decision</button>
+<button type="button" id="decision-history">View decision history</button>
+<pre id="value-history"></pre><p id="rubric-status" role="status"></p>
 </section><section><h2>Value evaluator (advisory)</h2><p>Suggested opportunities are not proven savings.
 Customer value criteria require separate organizational verification.</p>
 <button type="button" id="evaluate-value">List value hypotheses</button>
@@ -118,6 +125,24 @@ document.getElementById('save-rubric').addEventListener('click',async()=>{
  const data=await response.json();if(!response.ok){status.textContent=data.error;return;}
  rubricRevision=data.rubric.revision;status.textContent='Saved customer revision '+rubricRevision;
  }catch{status.textContent='Invalid criteria or save failed';}
+});
+document.getElementById('rubric-history').addEventListener('click',()=>loadValueHistory('history'));
+document.getElementById('decision-history').addEventListener('click',()=>loadValueHistory('decisions'));
+async function loadValueHistory(kind){
+ const output=document.getElementById('value-history');
+ try{const response=await fetch('/customers/'+encodeURIComponent(get('customer'))+'/value-'+kind,
+ {headers:rubricHeaders(),cache:'no-store'});
+ const data=await response.json();output.textContent=JSON.stringify(data,null,2);
+ }catch{output.textContent='History unavailable';}
+}
+document.getElementById('save-decision').addEventListener('click',async()=>{
+ const status=document.getElementById('rubric-status');
+ try{const response=await fetch('/customers/'+encodeURIComponent(get('customer'))+'/value-decisions',
+ {method:'POST',headers:{...rubricHeaders(),'content-type':'application/json'},
+ body:JSON.stringify({signalId:get('decision-signal'),decision:get('decision-choice'),
+ rationale:get('decision-reason'),expectedRevision:rubricRevision})});
+ const data=await response.json();status.textContent=response.ok?'Customer decision recorded':data.error;
+ }catch{status.textContent='Decision not recorded';}
 });
 document.getElementById('evaluate-value').addEventListener('click',async()=>{
  const status=document.getElementById('value-status'),details=document.getElementById('value-detail');

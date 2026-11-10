@@ -6,7 +6,8 @@ import {readFile,writeFile,rename,mkdir} from 'node:fs/promises';
 import {dirname} from 'node:path';
 import type {ValueRubric,ValueCriterion} from './customer-value-evaluator.js';
 type Entry={partnerId:string;customerId:string;salt:string;tokenHash:string;
- revision:number;criteria:ValueCriterion[]};
+ revision:number;criteria:ValueCriterion[];history?:Array<{revision:number;criteria:ValueCriterion[];changedAt:string}>;
+ decisions?:CustomerValueDecision[]};
 const id=/^[a-zA-Z0-9_-]{1,128}$/;
 export class CustomerValueStore{
  private static pending=new Map<string,Promise<void>>();
@@ -61,6 +62,36 @@ export class CustomerValueStore{
   return {partnerId,customerId,owner:'CUSTOMER',revision:entry.revision,
    criteria:entry.criteria};
  }
+ async history(partnerId:string,customerId:string,token:string){
+  const entry=await this.authorized(partnerId,customerId,token);
+  return entry.history??[];
+ }
+ async listDecisions(partnerId:string,customerId:string){
+  const entry=(await this.load()).find(e=>e.partnerId===partnerId&&e.customerId===customerId);
+  return entry?.decisions??[];
+ }
+ async decisions(partnerId:string,customerId:string,token:string){
+  const entry=await this.authorized(partnerId,customerId,token);
+  return entry.decisions??[];
+ }
+ async decideSignal(partnerId:string,customerId:string,token:string,signalId:string,
+  decision:CustomerValueDecision['decision'],rationale:string,expectedRevision:number){
+  return this.locked(async()=>{
+   const entry=await this.authorized(partnerId,customerId,token);
+   if(entry.revision<1)throw Error('customer_rubric_required');
+   if(!Number.isSafeInteger(expectedRevision)||expectedRevision!==entry.revision)
+    throw Error('rubric_revision_conflict');
+   if(!/^opportunity-[a-f0-9]{24}$/.test(signalId)||
+    !['ACCEPT','REJECT','NEEDS_EVIDENCE'].includes(decision)||
+    !rationale?.trim()||rationale.length>2000)throw Error('invalid_value_decision');
+   const entries=await this.load();
+   const target=entries.find(e=>e.partnerId===partnerId&&e.customerId===customerId)!;
+   target.decisions??=[];
+   const record={signalId,decision,rationale,revision:target.revision,
+    decidedAt:new Date().toISOString()};
+   target.decisions.push(record);await this.save(entries);return record;
+  });
+ }
  async update(partnerId:string,customerId:string,token:string,
   expectedRevision:number,criteria:ValueCriterion[]){
   return this.locked(async()=>{
@@ -73,10 +104,14 @@ export class CustomerValueStore{
     rubric:{partnerId,customerId,owner:'CUSTOMER',revision:entry.revision+1,criteria}});
    const entries=await this.load();
    const target=entries.find(e=>e.partnerId===partnerId&&e.customerId===customerId)!;
-   target.revision++;target.criteria=criteria;
+   target.history??=[];target.history.push({revision:target.revision+1,
+    criteria:structuredClone(criteria),changedAt:new Date().toISOString()});
+   target.revision++;target.criteria=structuredClone(criteria);
    await this.save(entries);
    return {partnerId,customerId,owner:'CUSTOMER' as const,
     revision:target.revision,criteria:target.criteria};
   });
  }
 }
+export type CustomerValueDecision={signalId:string;decision:'ACCEPT'|'REJECT'|'NEEDS_EVIDENCE';
+ rationale:string;revision:number;decidedAt:string};

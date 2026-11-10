@@ -2,6 +2,7 @@
  * Customer-owned criteria determine which hypotheses are relevant.
  */
 import type {SpendRecord} from './spend-intelligence.js';
+import {createHash} from 'node:crypto';
 export type ValueCriterion={id:string;label:string;weight:number;enabled:boolean;
  metric:'cost_reduction'|'time_saved'|'quality'|'revenue'|'risk_reduction'|'customer_experience';
  minimumEvidence:'measured'|'customer_attested'|'hypothesis'};
@@ -69,7 +70,7 @@ export function proposeValueHypotheses(records:SpendRecord[],customerId:string):
   group.spend+=r.amountMinor;groups.set(key,group);
  }
  return [...groups.entries()].sort((a,b)=>b[1].spend-a[1].spend||a[0].localeCompare(b[0]))
-  .map(([key,g],i)=>({id:'opportunity-'+(i+1),actorId:g.actorId,useCase:g.useCase,
+  .map(([key,g])=>({id:'opportunity-'+createHash('sha256').update(key).digest('hex').slice(0,24),actorId:g.actorId,useCase:g.useCase,
    metric:'cost_reduction' as const,evidence:'hypothesis' as const,
    description:'Review whether this workflow can achieve the same customer-defined outcome with lower cost. Observed spend (minor units): '+g.spend+'. No saving is asserted.'}));
 }
