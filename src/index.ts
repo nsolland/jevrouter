@@ -30,3 +30,4 @@ export * from "./otel-genai-normalizer.js";
 export * from "./deadline-policy.js";
 export * from "./deadline-route.js";
 export * from "./customer-roi-time.js";
+export * from "./time-aware-spend-assessment.js";
