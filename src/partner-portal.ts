@@ -33,6 +33,10 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere}.warning{color:#8b3500;font-weig
 <div id="summary" class="grid" aria-live="polite"></div>
 <p id="reconciliation" class="warning" role="status"></p>
 <details><summary>Evidence and full report</summary><pre id="result"></pre></details></section>
+<section><h2>Is Your AI Spend Worth It?</h2>
+<p>Top 10% of observed users or agents. Requires attributed usage records; unverified value is not ROI.</p>
+<button type="button" id="scan-top">Analyze top 10%</button><p id="scan-status" role="status"></p>
+<div id="scan-summary" class="grid"></div><details><summary>Scan evidence</summary><pre id="scan-detail"></pre></details></section>
 <section><h2>Report history</h2><button type="button" id="load-history">Load saved reports</button><p id="history-status" role="status"></p><div id="history"></div></section>
 </main><script src="/portal.js"></script></body></html>`;
 export const partnerPortalJs = `
@@ -67,6 +71,21 @@ document.getElementById('check-sources').addEventListener('click',async()=>{
   status.textContent=response.ok?(data.configured?'Configured: '+data.sources.join(', '):
    'No data sources configured for this customer'):'Source error: '+(data.error??response.status);
  }catch{status.textContent='Source status unavailable';}
+});
+document.getElementById('scan-top').addEventListener('click',async()=>{
+ const status=document.getElementById('scan-status'),summary=document.getElementById('scan-summary');
+ const details=document.getElementById('scan-detail');status.textContent='Analyzing';
+ summary.replaceChildren();details.textContent='';
+ const params=new URLSearchParams({from:get('from'),to:get('to'),currency:get('currency').toUpperCase()});
+ try{const response=await fetch('/customers/'+encodeURIComponent(get('customer'))+'/top-spend?'+params,
+ {headers:headers(),cache:'no-store'});const data=await response.json();
+ if(!response.ok){status.textContent=data.explanation??('Scan error: '+data.error);return;}
+ status.textContent='Observed usage only; causal ROI not established';
+ summary.append(metric('Observed actors',String(data.population.observedActors)),
+ metric('Top 10% share',data.population.topSharePct+'%'),
+ metric('Top-group spend',money(data.spend.topSpendMinor,data.currency)));
+ details.textContent=JSON.stringify(data,null,2);
+ }catch{status.textContent='Scan unavailable';}
 });
 document.getElementById('load-history').addEventListener('click',async()=>{
  const status=document.getElementById('history-status'),container=document.getElementById('history');

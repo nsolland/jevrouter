@@ -8,6 +8,8 @@ import {PartnerRegistry} from './partner-registry.js';
 import {PartnerReportHistory} from './partner-report-history.js';
 import {createPartnerControlHandler} from './partner-control-api.js';
 import {runPartnerPilot,type ReadOnlySpendAdapter} from './partner-pilot.js';
+import {scanTopAiSpend} from './top-ai-spend-scan.js';
+import type {SpendRecord} from './spend-intelligence.js';
 const portalStyle=partnerPortalHtml.match(/<style>([\s\S]*?)<\/style>/)?.[1]??'';
 const portalStyleHash=createHash('sha256').update(portalStyle).digest('base64');
 const validDate=(s:string)=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&
@@ -16,7 +18,8 @@ export function createPartnerReportApi(registry:PartnerRegistry,
  adapterFor:(partnerId:string,customerId:string,from:string,to:string)=>Promise<ReadOnlySpendAdapter>,
  history?:PartnerReportHistory,
  sourceStatus?:(partnerId:string,customerId:string)=>string[],
- requestsDirectory?:string){
+ requestsDirectory?:string,
+ attributedUsageFor?:(partnerId:string,customerId:string,from:string,to:string)=>Promise<SpendRecord[]>){
  const control=createPartnerControlHandler(registry,requestsDirectory);
  return createServer(async(req,res)=>{
   const send=(status:number,payload:unknown)=>{
@@ -42,6 +45,27 @@ export function createPartnerReportApi(registry:PartnerRegistry,
     const sources=sourceStatus?.(partnerId,sourcesMatch[1])??[];
     send(200,{customerId:sourcesMatch[1],configured:sources.length>0,
      sources,credentialsExposed:false});return;
+   }
+   const scanMatch=/^\/customers\/([a-zA-Z0-9_-]{1,128})\/top-spend$/.exec(url.pathname);
+   if(req.method==='GET'&&scanMatch){
+    const partnerId=req.headers['x-partner-id'],auth=req.headers.authorization;
+    if(typeof partnerId!=='string'||!auth?.startsWith('Bearer ')){
+     send(401,{error:'unauthorized'});return;
+    }
+    await registry.customer(partnerId,auth.slice(7),scanMatch[1]);
+    const from=url.searchParams.get('from')??'',to=url.searchParams.get('to')??'',
+     currency=url.searchParams.get('currency')??'';
+    if(!validDate(from)||!validDate(to)||from>to||!/^[A-Z]{3}$/.test(currency)){
+     send(400,{error:'invalid_report_window'});return;
+    }
+    if(!attributedUsageFor){
+     send(422,{error:'actor_attribution_not_configured',
+      explanation:'Provider cost records lack a verified user or agent identifier. No top-decile claim can be made.'});return;
+    }
+    const records=await attributedUsageFor(partnerId,scanMatch[1],from,to);
+    const result=scanTopAiSpend({partnerId,tenantId:scanMatch[1],currency,
+     periodStart:from,periodEnd:to,records});
+    send(200,{...result,sourceVerification:'UNVERIFIED_SOURCE_RECORDS'});return;
    }
    const historyMatch=/^\/reports\/([a-zA-Z0-9_-]{1,128})\/history$/.exec(url.pathname);
    if(req.method==='GET'&&historyMatch){
