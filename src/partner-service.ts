@@ -7,7 +7,7 @@ import {PartnerReportHistory} from './partner-report-history.js';
 import {createPartnerSpendImport} from './partner-spend-import.js';
 import type {ReadOnlySpendAdapter} from './partner-pilot.js';
 export function createConfiguredPartnerService(config:{
- registryFile:string;partnerId:string;customerId:string;historyFile?:string;
+ registryFile:string;partnerId:string;customerId:string;historyFile?:string;requestsDirectory?:string;
  langfuse?:{baseUrl:string;publicKey:string;secretKey:string;fetcher?:typeof fetch};
  litellm?:{baseUrl:string;apiKey:string;teamId:string;fetcher?:typeof fetch};
  invoices?:ReadOnlySpendAdapter;
@@ -24,13 +24,13 @@ export function createConfiguredPartnerService(config:{
    langfuse:config.langfuse,litellm:config.litellm,invoices:config.invoices});
  },config.historyFile?new PartnerReportHistory(config.historyFile):undefined,
   (partnerId,customerId)=>partnerId===config.partnerId&&customerId===config.customerId?
-   [config.langfuse?'langfuse':null,config.litellm?'litellm':null,config.invoices?'invoices':null].filter((x):x is string=>x!==null):[]);
+   [config.langfuse?'langfuse':null,config.litellm?'litellm':null,config.invoices?'invoices':null].filter((x):x is string=>x!==null):[],config.requestsDirectory);
 }
 /** Multi-partner white-label runtime. Each exact tenant binding has its own sources.
  * Customer creation never grants access to another tenant's upstream credentials.
  */
 export function createMultiPartnerService(config:{
- registryFile:string;historyFile?:string;
+ registryFile:string;historyFile?:string;requestsDirectory?:string;
  tenants:Array<{partnerId:string;customerId:string;
   langfuse?:{baseUrl:string;publicKey:string;secretKey:string;fetcher?:typeof fetch};
   litellm?:{baseUrl:string;apiKey:string;teamId:string;fetcher?:typeof fetch};
@@ -55,7 +55,7 @@ export function createMultiPartnerService(config:{
   },config.historyFile?new PartnerReportHistory(config.historyFile):undefined,
   (partnerId,customerId)=>{const tenant=bindings.get(JSON.stringify([partnerId,customerId]));
    return tenant?[tenant.langfuse?'langfuse':null,tenant.litellm?'litellm':null,
-    tenant.invoices?'invoices':null].filter((x):x is string=>x!==null):[];});
+    tenant.invoices?'invoices':null].filter((x):x is string=>x!==null):[];},config.requestsDirectory);
 }
 export async function listenPartnerService(server:ReturnType<typeof createPartnerReportApi>,
  port:number,host='127.0.0.1'){

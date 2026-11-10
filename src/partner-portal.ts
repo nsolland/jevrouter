@@ -19,6 +19,10 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere}.warning{color:#8b3500;font-weig
 <div class="grid"><label>Customer ID<input id="new-customer" required></label>
 <label>Customer name<input id="customer-name" required></label></div>
 <button type="submit">Create customer</button></form><p id="customer-status" role="status"></p></section>
+<section><h2>Request a data source</h2><form id="request-source"><label>Source
+<select id="source-type"><option value="litellm">LiteLLM</option><option value="langfuse">Langfuse</option></select></label>
+<label>Endpoint URL (no credentials)<input id="source-url" type="url" required></label>
+<button type="submit">Request operator connection</button></form><p id="request-status" role="status"></p></section>
 <section><h2>Customer data sources</h2><button type="button" id="check-sources">Check configured sources</button><p id="source-status" role="status"></p></section>
 <section><h2>Cost report</h2><form id="report"><div class="grid">
 <label>Customer ID<input id="customer" required></label>
@@ -46,6 +50,15 @@ document.getElementById('load-partner').addEventListener('click',async()=>{
  option.textContent=customer.displayName+' ('+customer.customerId+')';select.append(option);}
  select.addEventListener('change',()=>{document.getElementById('customer').value=select.value;});workspace.append(select);
  }catch{status.textContent='Partner workspace unavailable';}
+});
+document.getElementById('request-source').addEventListener('submit',async e=>{
+ e.preventDefault();const status=document.getElementById('request-status');status.textContent='Submitting';
+ try{const response=await fetch('/customers/'+encodeURIComponent(get('customer'))+'/source-requests',
+ {method:'POST',headers:{...headers(),'content-type':'application/json'},
+ body:JSON.stringify({source:get('source-type'),baseUrl:get('source-url')}),cache:'no-store'});
+ const data=await response.json();status.textContent=response.ok?'Request queued for operator: '+data.id:
+  'Request failed: '+(data.error??response.status);
+ }catch{status.textContent='Request unavailable';}
 });
 document.getElementById('check-sources').addEventListener('click',async()=>{
  const status=document.getElementById('source-status');status.textContent='Checking';

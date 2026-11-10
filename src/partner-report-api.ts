@@ -15,8 +15,9 @@ const validDate=(s:string)=>/^\d{4}-\d{2}-\d{2}$/.test(s)&&
 export function createPartnerReportApi(registry:PartnerRegistry,
  adapterFor:(partnerId:string,customerId:string,from:string,to:string)=>Promise<ReadOnlySpendAdapter>,
  history?:PartnerReportHistory,
- sourceStatus?:(partnerId:string,customerId:string)=>string[]){
- const control=createPartnerControlHandler(registry);
+ sourceStatus?:(partnerId:string,customerId:string)=>string[],
+ requestsDirectory?:string){
+ const control=createPartnerControlHandler(registry,requestsDirectory);
  return createServer(async(req,res)=>{
   const send=(status:number,payload:unknown)=>{
    res.writeHead(status,{'content-type':'application/json','cache-control':'no-store',
