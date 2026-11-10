@@ -37,6 +37,10 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere}.warning{color:#8b3500;font-weig
 <p>Top 10% of observed users or agents. Requires attributed usage records; unverified value is not ROI.</p>
 <button type="button" id="scan-top">Analyze top 10%</button><p id="scan-status" role="status"></p>
 <div id="scan-summary" class="grid"></div><details><summary>Scan evidence</summary><pre id="scan-detail"></pre></details></section>
+<section><h2>Value evaluator (advisory)</h2><p>Suggested opportunities are not proven savings.
+Customer value criteria require separate organizational verification.</p>
+<button type="button" id="evaluate-value">List value hypotheses</button>
+<p id="value-status" role="status"></p><pre id="value-detail"></pre></section>
 <section><h2>Report history</h2><button type="button" id="load-history">Load saved reports</button><p id="history-status" role="status"></p><div id="history"></div></section>
 </main><script src="/portal.js"></script></body></html>`;
 export const partnerPortalJs = `
@@ -86,6 +90,16 @@ document.getElementById('scan-top').addEventListener('click',async()=>{
  metric('Top-group spend',money(data.spend.topSpendMinor,data.currency)));
  details.textContent=JSON.stringify(data,null,2);
  }catch{status.textContent='Scan unavailable';}
+});
+document.getElementById('evaluate-value').addEventListener('click',async()=>{
+ const status=document.getElementById('value-status'),details=document.getElementById('value-detail');
+ status.textContent='Evaluating';details.textContent='';
+ const params=new URLSearchParams({from:get('from'),to:get('to'),currency:get('currency').toUpperCase()});
+ try{const response=await fetch('/customers/'+encodeURIComponent(get('customer'))+'/value-evaluation?'+params,
+ {headers:headers(),cache:'no-store'});const data=await response.json();
+ status.textContent=response.ok?(data.rubricStatus+' | Advisory only'):(data.error??'Evaluation failed');
+ details.textContent=JSON.stringify(data,null,2);
+ }catch{status.textContent='Evaluation unavailable';}
 });
 document.getElementById('load-history').addEventListener('click',async()=>{
  const status=document.getElementById('history-status'),container=document.getElementById('history');

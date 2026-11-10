@@ -35,5 +35,11 @@ test('authenticated partner portal scans live-shaped LiteLLM with scoped attribu
   assert.equal(body.topConsumers[0].byModel['model-a'],1250);
   assert.equal((await fetch(url.replace('/customer/','/other/'),{headers})).status,404);
   assert.equal((await fetch(url)).status,401);
+  const evaluation=await fetch(url.replace('/top-spend','/value-evaluation'),{headers});
+  assert.equal(evaluation.status,200);
+  const advisory=await evaluation.json() as {rubricStatus:string;hypotheses:Array<{evidence:string}>;evaluation:null};
+  assert.equal(advisory.rubricStatus,'CUSTOMER_RUBRIC_NOT_VERIFIED');
+  assert.equal(advisory.hypotheses[0].evidence,'hypothesis');
+  assert.equal(advisory.evaluation,null);
  }finally{await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));}
 });

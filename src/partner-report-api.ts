@@ -9,6 +9,7 @@ import {PartnerReportHistory} from './partner-report-history.js';
 import {createPartnerControlHandler} from './partner-control-api.js';
 import {runPartnerPilot,type ReadOnlySpendAdapter} from './partner-pilot.js';
 import {scanTopAiSpend} from './top-ai-spend-scan.js';
+import {proposeValueHypotheses,evaluateCustomerValue,type ValueRubric} from './customer-value-evaluator.js';
 import type {SpendRecord} from './spend-intelligence.js';
 const portalStyle=partnerPortalHtml.match(/<style>([\s\S]*?)<\/style>/)?.[1]??'';
 const portalStyleHash=createHash('sha256').update(portalStyle).digest('base64');
@@ -19,7 +20,8 @@ export function createPartnerReportApi(registry:PartnerRegistry,
  history?:PartnerReportHistory,
  sourceStatus?:(partnerId:string,customerId:string)=>string[],
  requestsDirectory?:string,
- attributedUsageFor?:(partnerId:string,customerId:string,from:string,to:string)=>Promise<SpendRecord[]>){
+ attributedUsageFor?:(partnerId:string,customerId:string,from:string,to:string)=>Promise<SpendRecord[]>,
+ customerRubricFor?:(partnerId:string,customerId:string)=>Promise<ValueRubric|null>){
  const control=createPartnerControlHandler(registry,requestsDirectory);
  return createServer(async(req,res)=>{
   const send=(status:number,payload:unknown)=>{
@@ -67,6 +69,31 @@ export function createPartnerReportApi(registry:PartnerRegistry,
     const result=scanTopAiSpend({partnerId,tenantId:scanMatch[1],currency,
      periodStart:from,periodEnd:to,records});
     send(200,{...result,sourceVerification:'UNVERIFIED_SOURCE_RECORDS'});return;
+   }
+   const valueMatch=/^\/customers\/([a-zA-Z0-9_-]{1,128})\/value-evaluation$/.exec(url.pathname);
+   if(req.method==='GET'&&valueMatch){
+    const partnerId=req.headers['x-partner-id'],auth=req.headers.authorization;
+    if(typeof partnerId!=='string'||!auth?.startsWith('Bearer ')){
+     send(401,{error:'unauthorized'});return;
+    }
+    await registry.customer(partnerId,auth.slice(7),valueMatch[1]);
+    const from=url.searchParams.get('from')??'',to=url.searchParams.get('to')??'',
+     currency=url.searchParams.get('currency')??'';
+    if(!validDate(from)||!validDate(to)||from>to||!/^[A-Z]{3}$/.test(currency)){
+     send(400,{error:'invalid_report_window'});return;
+    }
+    if(!attributedUsageFor||currency!=='USD'){
+     send(422,{error:'attributed_usd_usage_required'});return;
+    }
+    const records=await attributedUsageFor(partnerId,valueMatch[1],from,to);
+    const hypotheses=proposeValueHypotheses(records,valueMatch[1]);
+    const rubric=customerRubricFor?await customerRubricFor(partnerId,valueMatch[1]):null;
+    if(!rubric){send(200,{authority:'ADVISORY_ONLY',
+     rubricStatus:'CUSTOMER_RUBRIC_NOT_VERIFIED',hypotheses,
+     evaluation:null,notice:'No verified customer rubric. Hypotheses are not accepted customer value.'});return;}
+    send(200,{authority:'ADVISORY_ONLY',rubricStatus:'CUSTOMER_RUBRIC_SUPPLIED',hypotheses,
+     evaluation:evaluateCustomerValue({partnerId,customerId:valueMatch[1],rubric,
+      records,signals:hypotheses})});return;
    }
    const historyMatch=/^\/reports\/([a-zA-Z0-9_-]{1,128})\/history$/.exec(url.pathname);
    if(req.method==='GET'&&historyMatch){

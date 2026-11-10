@@ -27,5 +27,8 @@ test('top spend endpoint fails closed without attribution and enforces tenant sc
   const response=await fetch(base+url,{headers});
   assert.equal(response.status,422);
   assert.equal((await response.json()).error,'actor_attribution_not_configured');
+  const value=await fetch(base+'/customers/customer/value-evaluation?from=2026-11-01&to=2026-11-30&currency=USD',{headers});
+  assert.equal(value.status,422);
+  assert.equal((await value.json()).error,'attributed_usd_usage_required');
  }finally{await new Promise<void>((resolve,reject)=>server.close(e=>e?reject(e):resolve()));}
 });
