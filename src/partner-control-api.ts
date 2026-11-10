@@ -33,7 +33,7 @@ export function createPartnerControlHandler(registry:PartnerRegistry,
     send(res,401,{error:'unauthorized'});return;
    }
    const token=authorization.slice(7);
-   await registry.authenticate(partnerId,token);
+   const actor=await registry.authenticate(partnerId,token);
    if(path==='/partner'&&req.method==='GET'){
     const {brand,customers}=await registry.partnerOverview(partnerId,token);
     send(res,200,{brand,customers});return;
@@ -79,6 +79,7 @@ export function createPartnerControlHandler(registry:PartnerRegistry,
     send(res,200,{requests});return;
    }
    if(path==='/customers'&&req.method==='POST'){
+    if(actor.role!=='owner'){send(res,403,{error:'role_forbidden'});return;}
     const data=await body(req);
     if(!data||typeof data!=='object'||Array.isArray(data)){
      send(res,400,{error:'invalid_customer'});return;
@@ -105,6 +106,7 @@ export function createPartnerControlHandler(registry:PartnerRegistry,
    const message=(e as Error).message;
    const status=message==='partner_auth_denied'?401:
     message==='customer_scope_denied'?404:
+    message==='role_forbidden'?403:
     message==='customer_exists'?409:
     message==='body_too_large'||message==='invalid_customer'?400:500;
    send(res,status,{error:status===500?'internal_error':message});

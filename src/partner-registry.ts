@@ -49,19 +49,18 @@ export class PartnerRegistry{
  }
  async authenticate(partnerId:string,token:string){
   const r=await this.load();
-  const p=r.principals.find(x=>x.partnerId===partnerId);
+  const candidates=r.principals.filter(x=>x.partnerId===partnerId);
+  const p=candidates.find(x=>{if(!token)return false;const actual=Buffer.from(digest(token,x.tokenSalt),'hex');
+   const expected=Buffer.from(x.tokenHash,'hex');return actual.length===expected.length&&timingSafeEqual(actual,expected);});
   if(!p||!token)throw Error('partner_auth_denied');
-  const actual=Buffer.from(digest(token,p.tokenSalt),'hex');
-  const expected=Buffer.from(p.tokenHash,'hex');
-  if(actual.length!==expected.length||!timingSafeEqual(actual,expected))
-   throw Error('partner_auth_denied');
   return {partnerId,role:p.role};
  }
  async addCustomer(partnerId:string,token:string,customer:PartnerCustomer){
   if(customer.partnerId!==partnerId||!customer.customerId)
    throw Error('customer_scope_denied');
   return this.exclusive(async()=>{
-  await this.authenticate(partnerId,token);
+  const actor=await this.authenticate(partnerId,token);
+  if(actor.role!=='owner')throw Error('role_forbidden');
   const r=await this.load();
   if(r.customers.some(c=>c.partnerId===partnerId&&c.customerId===customer.customerId))
    throw Error('customer_exists');
@@ -71,12 +70,24 @@ export class PartnerRegistry{
  async rotateToken(partnerId:string,oldToken:string,newToken:string){
   if(newToken.length<32)throw Error('invalid_partner_credentials');
   return this.exclusive(async()=>{
-   await this.authenticate(partnerId,oldToken);
+   const actor=await this.authenticate(partnerId,oldToken);
+   if(actor.role!=='owner')throw Error('role_forbidden');
    const r=await this.load();
-   const principal=r.principals.find(p=>p.partnerId===partnerId);
+   const principal=r.principals.find(p=>p.partnerId===partnerId&&p.role==='owner');
    if(!principal)throw Error('partner_auth_denied');
    principal.tokenSalt=randomBytes(16).toString('hex');
    principal.tokenHash=digest(newToken,principal.tokenSalt);
+   await this.save(r);
+  });
+ }
+ async issueOperator(partnerId:string,ownerToken:string,operatorToken:string){
+  if(operatorToken.length<32)throw Error('invalid_partner_credentials');
+  return this.exclusive(async()=>{
+   const actor=await this.authenticate(partnerId,ownerToken);
+   if(actor.role!=='owner')throw Error('role_forbidden');
+   const r=await this.load();
+   const salt=randomBytes(16).toString('hex');
+   r.principals.push({partnerId,tokenSalt:salt,tokenHash:digest(operatorToken,salt),role:'operator'});
    await this.save(r);
   });
  }

@@ -78,6 +78,8 @@ export async function configurePartnerSourceFromEnv(env:NodeJS.ProcessEnv=proces
   !/^[a-zA-Z0-9_-]{1,128}$/.test(customerId))throw Error('invalid_tenant_binding');
  if(source!=='langfuse'&&source!=='litellm')throw Error('unsupported_source');
  const registry=new PartnerRegistry(required(env,'SPEND_REGISTRY_FILE'));
+ const actor=await registry.authenticate(partnerId,required(env,'SPEND_PARTNER_TOKEN'));
+ if(actor.role!=='owner')throw Error('role_forbidden');
  await registry.customer(partnerId,required(env,'SPEND_PARTNER_TOKEN'),customerId);
  const baseUrl=required(env,'SPEND_SOURCE_URL');
  const url=new URL(baseUrl);
@@ -142,4 +144,12 @@ export async function configurePartnerSourceFromEnv(env:NodeJS.ProcessEnv=proces
  await rename(temp,file);await chmod(file,0o600);
  return {partnerId,customerId,source,configured:true,restartRequired:true};
  }finally{await unlink(ownerFile);await rmdir(lock);}
+}
+
+export async function issueOperatorFromEnv(env:NodeJS.ProcessEnv=process.env){
+ const registry=new PartnerRegistry(required(env,'SPEND_REGISTRY_FILE'));
+ const partnerId=required(env,'SPEND_PARTNER_ID');
+ const token=env.SPEND_OPERATOR_TOKEN??randomBytes(32).toString('hex');
+ await registry.issueOperator(partnerId,required(env,'SPEND_PARTNER_TOKEN'),token);
+ return {partnerId,role:'operator' as const,token};
 }
