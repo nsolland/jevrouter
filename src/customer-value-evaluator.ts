@@ -49,14 +49,15 @@ export function evaluateCustomerValue(args:{partnerId:string;customerId:string;
    estimatedBenefitMinor:s.estimatedBenefitMinor??null,
    customerCriteria:relevant.map(c=>c.id),acceptedForReview:eligible.length>0,
    customerWeight:eligible.reduce((n,c)=>n+c.weight,0),
-   status:eligible.length?'CUSTOMER_CRITERIA_MATCH':'NOT_ACCEPTED_BY_CUSTOMER_CRITERIA'};
+   status:eligible.length?'ELIGIBLE_FOR_CUSTOMER_DECISION':'NOT_ELIGIBLE_UNDER_CUSTOMER_CRITERIA'};
  });
  return {schemaVersion:'1.0',partnerId,customerId,rubricRevision:rubric.revision,
   authority:'ADVISORY_ONLY',findings,
   customerControls:'Customer may change criteria, weights and evidence thresholds; no automatic policy change.',
   limitations:['Hypotheses and estimated benefits are not verified ROI.',
    'A matching customer criterion does not prove causality or business value.',
-   'No customer rubric can be inferred from provider spend alone.']};
+   'No customer rubric can be inferred from provider spend alone.',
+   'Only the customer decides what constitutes value; evaluator matches are not customer acceptance.']};
 }
 /** Generate explicitly unverified opportunities from observed spend, not claimed savings. */
 export function proposeValueHypotheses(records:SpendRecord[],customerId:string):ValueSignal[]{

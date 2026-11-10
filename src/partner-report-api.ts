@@ -145,11 +145,21 @@ export function createPartnerReportApi(registry:PartnerRegistry,
     if(!rubric){send(200,{authority:'ADVISORY_ONLY',
      rubricStatus:'CUSTOMER_RUBRIC_NOT_VERIFIED',hypotheses,
      evaluation:null,notice:'No verified customer rubric. Hypotheses are not accepted customer value.'});return;}
-    send(200,{authority:'ADVISORY_ONLY',rubricStatus:'CUSTOMER_RUBRIC_SUPPLIED',hypotheses,
-     evaluation:evaluateCustomerValue({partnerId,customerId:valueMatch[1],rubric,
-      records,signals:hypotheses}),
-     customerDecisions:customerValueStore?(await customerValueStore.listDecisions(partnerId,valueMatch[1]))
-      .filter(d=>hypotheses.some(h=>h.id===d.signalId)):[]});return;
+    const customerDecisions=customerValueStore?(await customerValueStore.listDecisions(partnerId,valueMatch[1]))
+      .filter(d=>hypotheses.some(h=>h.id===d.signalId)):[];
+    const evaluation=evaluateCustomerValue({partnerId,customerId:valueMatch[1],rubric,
+      records,signals:hypotheses});
+    const customerVerdicts=evaluation.findings.map(f=>{
+     const decisions=customerDecisions.filter(d=>d.signalId===f.signalId);
+     const latest=decisions.at(-1);
+     return {signalId:f.signalId,customerDecision:latest?.decision??'NOT_DECIDED',
+      customerRationale:latest?.rationale??null,
+      customerValueStatus:latest?.decision==='ACCEPT'?'CUSTOMER_ACCEPTED':
+       latest?.decision==='REJECT'?'CUSTOMER_REJECTED':
+       latest?.decision==='NEEDS_EVIDENCE'?'CUSTOMER_REQUIRES_EVIDENCE':'CUSTOMER_UNDECIDED'};
+    });
+    send(200,{authority:'CUSTOMER_DEFINES_VALUE',rubricStatus:'CUSTOMER_RUBRIC_SUPPLIED',hypotheses,
+     evaluation,customerVerdicts,customerDecisions});return;
    }
    const historyMatch=/^\/reports\/([a-zA-Z0-9_-]{1,128})\/history$/.exec(url.pathname);
    if(req.method==='GET'&&historyMatch){
