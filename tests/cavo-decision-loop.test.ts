@@ -51,3 +51,22 @@ test('persistent CAVO snapshot restores verified history and rejects tenant swap
  await writeFile(file,JSON.stringify(snapshot));
  await assert.rejects(()=>store.load('customer-a'),/invalid_cavo_snapshot/);
 });
+
+test('rejects malformed outcomes and allocation policies instead of persisting unusable evidence',()=>{
+ const loop=new CavoDecisionLoop('c');
+ assert.throws(()=>loop.addInitiative({id:'bad',customerId:'c',rubricRevision:1,
+  title:'Bad',outcomes:null as never}),/invalid_initiative/);
+ assert.throws(()=>loop.addInitiative({id:'bad2',customerId:'c',rubricRevision:1,
+  title:'Bad',outcomes:[{criterionId:'quality',baseline:1,target:2,unit:'score',
+   evidence:'FAKE' as never}]}),/invalid_initiative/);
+ assert.throws(()=>loop.addAllocationRule({id:'bad',version:1,method:'USAGE',
+  shares:null as never}),/invalid_allocation_rule/);
+ loop.addInitiative({id:'good',customerId:'c',rubricRevision:1,title:'Valid',outcomes:[]});
+ loop.recommend({id:'r',initiativeId:'good',description:'Try',assumptions:[]});
+ loop.customerDecision({id:'d',recommendationId:'r',choice:'PROCEED',rationale:'Approved',
+  customerActor:'owner',at:'2026-11-10T12:00:00Z'});
+ assert.throws(()=>loop.followUp({id:'bad',decisionId:'d',implemented:true,
+  at:'2026-11-10T13:00:00Z',actualCostMinor:1,evidence:'MEASURED',sourceIds:[],
+  outcomes:[{criterionId:'quality',baseline:1,target:2,unit:'score',
+   evidence:'FAKE' as never}]}),/invalid_follow_up/);
+});

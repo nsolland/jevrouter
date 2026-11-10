@@ -24,6 +24,11 @@ type Event={seq:number;kind:'INITIATIVE'|'ALLOCATION_RULE'|'COST'|'RECOMMENDATIO
  payload:Initiative|AllocationRule|CostEvent|Recommendation|CustomerDecision|FollowUp;
  previousHash:string;hash:string};
 const validAmount=(n:number)=>Number.isSafeInteger(n)&&n>=0;
+const validOutcome=(o:Outcome)=>o&&typeof o.criterionId==='string'&&!!o.criterionId&&
+ typeof o.unit==='string'&&!!o.unit&&['HYPOTHESIS','CUSTOMER_ATTESTED','MEASURED'].includes(o.evidence)&&
+ (typeof o.baseline==='string'||Number.isFinite(o.baseline))&&
+ (typeof o.target==='string'||Number.isFinite(o.target))&&
+ (o.actual===undefined||typeof o.actual==='string'||Number.isFinite(o.actual));
 const hash=(v:unknown)=>createHash('sha256').update(JSON.stringify(v)).digest('hex');
 export class CavoDecisionLoop{
  private events:Event[]=[];
@@ -65,14 +70,15 @@ export class CavoDecisionLoop{
  addInitiative(v:Initiative){
   if(v.customerId!==this.customerId||!v.id||!v.title||
    !Number.isSafeInteger(v.rubricRevision)||v.rubricRevision<1||
-   !v.outcomes.every(o=>o.criterionId&&o.unit&&o.evidence))
+   !Array.isArray(v.outcomes)||!v.outcomes.every(validOutcome))
    throw Error('invalid_initiative');
   this.append('INITIATIVE',v,v.id);this.initiatives.set(v.id,structuredClone(v));
  }
  addAllocationRule(v:AllocationRule){
   if(!v.id||!Number.isSafeInteger(v.version)||v.version<1||
    !['DIRECT','USAGE','PROPORTIONAL'].includes(v.method)||
-   !Object.values(v.shares).every(n=>Number.isFinite(n)&&n>=0)||
+   !v.shares||typeof v.shares!=='object'||Array.isArray(v.shares)||
+ !Object.values(v.shares).every(n=>Number.isFinite(n)&&n>=0)||
    Math.abs(Object.values(v.shares).reduce((a,b)=>a+b,0)-1)>1e-8)
    throw Error('invalid_allocation_rule');
   const key=v.id+':'+v.version;
@@ -102,7 +108,7 @@ export class CavoDecisionLoop{
   if(!v.id||!decision||decision.choice!=='PROCEED'||typeof v.implemented!=='boolean'||
    !validAmount(v.actualCostMinor)||!Number.isFinite(Date.parse(v.at))||
    (v.realizedBenefitMinor!==undefined&&!validAmount(v.realizedBenefitMinor))||
-   !Array.isArray(v.sourceIds)||!Array.isArray(v.outcomes)||
+   !Array.isArray(v.sourceIds)||!Array.isArray(v.outcomes)||!v.outcomes.every(validOutcome)||
    !['HYPOTHESIS','CUSTOMER_ATTESTED','MEASURED'].includes(v.evidence)||
    (v.realizedBenefitMinor!==undefined&&(v.evidence==='HYPOTHESIS'||!v.sourceIds.length))||
    (!v.implemented&&v.realizedBenefitMinor!==undefined))throw Error('invalid_follow_up');
