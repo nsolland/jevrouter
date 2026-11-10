@@ -28,3 +28,4 @@ export * from "./spend-snapshot-adapter.js";
 export * from "./evidence-route-evaluation.js";
 export * from "./otel-genai-normalizer.js";
 export * from "./deadline-policy.js";
+export * from "./deadline-route.js";
