@@ -80,6 +80,13 @@ export class PartnerRegistry{
    await this.save(r);
   });
  }
+ async partnerOverview(partnerId:string,token:string){
+  await this.authenticate(partnerId,token);
+  const r=await this.load();
+  const brand=r.partners.find(b=>b.partnerId===partnerId);
+  if(!brand)throw Error('partner_missing');
+  return {brand,customers:r.customers.filter(c=>c.partnerId===partnerId)};
+ }
  async customer(partnerId:string,token:string,customerId:string){
   await this.authenticate(partnerId,token);
   const r=await this.load();

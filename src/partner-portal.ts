@@ -14,6 +14,7 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere}.warning{color:#8b3500;font-weig
 <label>Partner ID<input id="partner" required></label>
 <label>Access token (not stored)<input id="token" type="password" autocomplete="off" required></label>
 </div></section>
+<section><h2>Partner workspace</h2><button type="button" id="load-partner">Load my workspace</button><p id="partner-status" role="status"></p><div id="partner-workspace"></div></section>
 <section><h2>Create customer</h2><form id="create-customer">
 <div class="grid"><label>Customer ID<input id="new-customer" required></label>
 <label>Customer name<input id="customer-name" required></label></div>
@@ -30,6 +31,21 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere}.warning{color:#8b3500;font-weig
 <section><h2>Report history</h2><button type="button" id="load-history">Load saved reports</button><p id="history-status" role="status"></p><div id="history"></div></section>
 </main><script src="/portal.js"></script></body></html>`;
 export const partnerPortalJs = `
+document.getElementById('load-partner').addEventListener('click',async()=>{
+ const status=document.getElementById('partner-status'),workspace=document.getElementById('partner-workspace');
+ status.textContent='Loading';workspace.replaceChildren();
+ try{const response=await fetch('/partner',{headers:headers(),cache:'no-store'});
+ const data=await response.json();if(!response.ok){status.textContent='Access error: '+(data.error??response.status);return;}
+ document.title=data.brand.productName;
+ const heading=document.querySelector('h1');heading.textContent=data.brand.productName;
+ status.textContent=data.brand.legalEntity+' | '+data.brand.supportEmail;
+ const select=document.createElement('select');select.setAttribute('aria-label','Select customer');
+ const placeholder=document.createElement('option');placeholder.textContent='Select customer';placeholder.value='';select.append(placeholder);
+ for(const customer of data.customers){const option=document.createElement('option');option.value=customer.customerId;
+ option.textContent=customer.displayName+' ('+customer.customerId+')';select.append(option);}
+ select.addEventListener('change',()=>{document.getElementById('customer').value=select.value;});workspace.append(select);
+ }catch{status.textContent='Partner workspace unavailable';}
+});
 document.getElementById('load-history').addEventListener('click',async()=>{
  const status=document.getElementById('history-status'),container=document.getElementById('history');
  status.textContent='Loading';container.replaceChildren();

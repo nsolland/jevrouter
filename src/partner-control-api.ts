@@ -30,6 +30,10 @@ export function createPartnerControlHandler(registry:PartnerRegistry){
    }
    const token=authorization.slice(7);
    await registry.authenticate(partnerId,token);
+   if(path==='/partner'&&req.method==='GET'){
+    const {brand,customers}=await registry.partnerOverview(partnerId,token);
+    send(res,200,{brand,customers});return;
+   }
    if(path==='/customers'&&req.method==='POST'){
     const data=await body(req);
     if(!data||typeof data!=='object'||Array.isArray(data)){
