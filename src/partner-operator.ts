@@ -2,16 +2,35 @@
  * Environment variables are inherited from the operator's secret manager.
  */
 import {randomBytes} from 'node:crypto';
+import {readFile,stat} from 'node:fs/promises';
 import {PartnerRegistry} from './partner-registry.js';
-import {createConfiguredPartnerService,listenPartnerService} from './partner-service.js';
+import {createConfiguredPartnerService,createMultiPartnerService,listenPartnerService} from './partner-service.js';
 const required=(env:NodeJS.ProcessEnv,key:string)=>{
  const v=env[key];if(!v)throw Error('missing_environment:'+key);return v;
 };
 export async function startPartnerServiceFromEnv(env:NodeJS.ProcessEnv=process.env){
  const registryFile=required(env,'SPEND_REGISTRY_FILE');
+ const port=Number(env.SPEND_PORT??'8787');
+ if(env.SPEND_TENANTS_FILE){
+  const file=env.SPEND_TENANTS_FILE;
+  const info=await stat(file);
+  if(!info.isFile()||(info.mode&0o077)!==0)throw Error('insecure_tenants_file_permissions');
+  const parsed:unknown=JSON.parse(await readFile(file,'utf8'));
+  if(!parsed||typeof parsed!=='object'||!('tenants' in parsed)||
+   !Array.isArray(parsed.tenants))throw Error('invalid_tenants_configuration');
+  const tenants=parsed.tenants as Array<{partnerId:string;customerId:string;
+   litellm?:{baseUrl:string;apiKey:string;teamId:string};
+   langfuse?:{baseUrl:string;publicKey:string;secretKey:string}}>;
+  for(const t of tenants){
+   if(!t||typeof t.partnerId!=='string'||typeof t.customerId!=='string'||
+    (!t.litellm&&!t.langfuse))throw Error('invalid_tenants_configuration');
+  }
+  const server=createMultiPartnerService({registryFile,historyFile:env.SPEND_HISTORY_FILE,tenants});
+  const address=await listenPartnerService(server,port);
+  return {server,address};
+ }
  const partnerId=required(env,'SPEND_PARTNER_ID');
  const customerId=required(env,'SPEND_CUSTOMER_ID');
- const port=Number(env.SPEND_PORT??'8787');
  const litellm=env.SPEND_LITELLM_URL?{
   baseUrl:env.SPEND_LITELLM_URL,
   apiKey:required(env,'SPEND_LITELLM_KEY'),
