@@ -15,6 +15,14 @@ export type ValueSignal={id:string;actorId:string;useCase:string;
 const evidenceRank={hypothesis:0,customer_attested:1,measured:2};
 const metrics=new Set<ValueCriterion['metric']>(['cost_reduction','time_saved','quality',
  'revenue','risk_reduction','customer_experience']);
+/** Normalize customer-defined relative priorities without changing raw observations. */
+export function normalizeCustomerWeights(criteria:ValueCriterion[]){
+ const active=criteria.filter(c=>c.enabled);
+ const total=active.reduce((sum,c)=>sum+c.weight,0);
+ if(!Number.isFinite(total)||total<0)throw Error('invalid_customer_weight_total');
+ return criteria.map(c=>({...c,normalizedWeightPct:c.enabled?
+  Math.round((total?c.weight/total:0)*10000)/100:0}));
+}
 export function evaluateCustomerValue(args:{partnerId:string;customerId:string;
  rubric:ValueRubric;records:SpendRecord[];signals:ValueSignal[]}){
  const {rubric,records,signals,partnerId,customerId}=args;
@@ -28,6 +36,7 @@ export function evaluateCustomerValue(args:{partnerId:string;customerId:string;
    !(c.minimumEvidence in evidenceRank))throw Error('invalid_value_criterion');
   criterionIds.add(c.id);
  }
+ const normalized=normalizeCustomerWeights(rubric.criteria);
  const useCases=new Set<string>(),actors=new Set<string>();
  for(const r of records){
   if(r.tenantId!==customerId)throw Error('tenant_mismatch');
@@ -49,10 +58,12 @@ export function evaluateCustomerValue(args:{partnerId:string;customerId:string;
    estimatedBenefitMinor:s.estimatedBenefitMinor??null,
    customerCriteria:relevant.map(c=>c.id),acceptedForReview:eligible.length>0,
    customerWeight:eligible.reduce((n,c)=>n+c.weight,0),
+   normalizedCustomerWeightPct:eligible.reduce((n,c)=>n+
+    (normalized.find(w=>w.id===c.id)?.normalizedWeightPct??0),0),
    status:eligible.length?'ELIGIBLE_FOR_CUSTOMER_DECISION':'NOT_ELIGIBLE_UNDER_CUSTOMER_CRITERIA'};
  });
  return {schemaVersion:'1.0',partnerId,customerId,rubricRevision:rubric.revision,
-  authority:'ADVISORY_ONLY',findings,
+  authority:'ADVISORY_ONLY',customerWeights:normalized,findings,
   customerControls:'Customer may change criteria, weights and evidence thresholds; no automatic policy change.',
   limitations:['Hypotheses and estimated benefits are not verified ROI.',
    'A matching customer criterion does not prove causality or business value.',

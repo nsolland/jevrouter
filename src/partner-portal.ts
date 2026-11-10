@@ -41,7 +41,11 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere}.warning{color:#8b3500;font-weig
 <p>Requires a separately provisioned customer credential. Partner access tokens cannot approve criteria.</p>
 <label>Customer value token (not stored)<input id="customer-value-token" type="password" autocomplete="off"></label>
 <button type="button" id="load-rubric">Load customer criteria</button>
-<label>Criteria JSON (customer-controlled)<textarea id="value-criteria" rows="7" style="width:100%" spellcheck="false">[{"id":"quality","label":"Quality","weight":100,"enabled":true,"metric":"quality","minimumEvidence":"measured"}]</textarea></label>
+<p>Adjust priorities with sliders. Weights are relative and automatically normalized to 100%.
+No slider changes the underlying measurements or makes a hypothesis true.</p>
+<div id="weight-controls"></div>
+<button type="button" id="default-weights">Load editable example weights</button>
+<label>Criteria JSON (advanced)<textarea id="value-criteria" rows="7" style="width:100%" spellcheck="false">[{"id":"quality","label":"Quality","weight":100,"enabled":true,"metric":"quality","minimumEvidence":"measured"}]</textarea></label>
 <button type="button" id="save-rubric">Save customer criteria</button>
 <button type="button" id="rubric-history">View revision history</button>
 <label>Hypothesis ID<input id="decision-signal" placeholder="opportunity-..."></label>
@@ -104,6 +108,37 @@ document.getElementById('scan-top').addEventListener('click',async()=>{
  details.textContent=JSON.stringify(data,null,2);
  }catch{status.textContent='Scan unavailable';}
 });
+const weightExamples=[
+ {id:'quality',label:'Quality',metric:'quality',weight:30},
+ {id:'time',label:'Time saved',metric:'time_saved',weight:20},
+ {id:'revenue',label:'Revenue',metric:'revenue',weight:15},
+ {id:'risk',label:'Risk reduction',metric:'risk_reduction',weight:15},
+ {id:'experience',label:'Customer experience',metric:'customer_experience',weight:15},
+ {id:'cost',label:'Cost reduction',metric:'cost_reduction',weight:5}
+];
+function renderWeights(){
+ const host=document.getElementById('weight-controls');host.replaceChildren();
+ let criteria;try{criteria=JSON.parse(get('value-criteria'));}catch{return;}
+ const total=criteria.filter(c=>c.enabled).reduce((sum,c)=>sum+c.weight,0);
+ for(const c of criteria){
+  const row=document.createElement('div');const label=document.createElement('label');
+  const toggle=document.createElement('input');toggle.type='checkbox';toggle.checked=c.enabled;
+  const slider=document.createElement('input');slider.type='range';slider.min='0';slider.max='100';
+  slider.step='1';slider.value=String(c.weight);
+  const number=document.createElement('span');
+  number.textContent=' '+c.weight+' / '+(total?Math.round((c.enabled?c.weight:0)/total*1000)/10:0)+'%';
+  toggle.addEventListener('change',()=>{c.enabled=toggle.checked;syncWeights(criteria);});
+  slider.addEventListener('input',()=>{c.weight=Number(slider.value);syncWeights(criteria);});
+  label.append(toggle,document.createTextNode(' '+c.label+' '),slider,number);
+  row.append(label);host.append(row);
+ }
+}
+function syncWeights(criteria){document.getElementById('value-criteria').value=JSON.stringify(criteria,null,2);renderWeights();}
+document.getElementById('default-weights').addEventListener('click',()=>{
+ syncWeights(weightExamples.map(c=>({...c,enabled:true,minimumEvidence:'customer_attested'})));
+});
+document.getElementById('value-criteria').addEventListener('input',renderWeights);
+renderWeights();
 let rubricRevision=0;
 const rubricUrl=()=>'/customers/'+encodeURIComponent(get('customer'))+'/value-rubric';
 const rubricHeaders=()=>({'x-partner-id':get('partner'),
@@ -113,7 +148,7 @@ document.getElementById('load-rubric').addEventListener('click',async()=>{
  try{const response=await fetch(rubricUrl(),{headers:rubricHeaders(),cache:'no-store'});
  const data=await response.json();if(!response.ok){status.textContent=data.error;return;}
  rubricRevision=data.rubric?.revision??0;
- if(data.rubric)document.getElementById('value-criteria').value=JSON.stringify(data.rubric.criteria,null,2);
+ if(data.rubric){document.getElementById('value-criteria').value=JSON.stringify(data.rubric.criteria,null,2);renderWeights();}
  status.textContent='Customer revision '+rubricRevision;
  }catch{status.textContent='Cannot load customer criteria';}
 });
