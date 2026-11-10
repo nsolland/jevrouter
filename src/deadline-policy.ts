@@ -29,7 +29,7 @@ export function selectDeadlineRoute(
 ): DeadlineDecision {
   const deadline = policy.deadlineMs ?? defaults[policy.urgency];
   const minuteValue = policy.valuePerMinuteUsd ?? 0;
-  if (!Number.isFinite(deadline) || deadline <= 0 ||
+  if (!Object.hasOwn(defaults, policy.urgency) || !Number.isFinite(deadline) || deadline <= 0 ||
       !Number.isFinite(policy.minQuality) || policy.minQuality < 0 || policy.minQuality > 1 ||
       !Number.isFinite(minuteValue) || minuteValue < 0 ||
       (policy.maxCostUsd !== undefined &&
@@ -40,7 +40,7 @@ export function selectDeadlineRoute(
     c.verified &&
     Number.isFinite(c.expectedDurationMs) && c.expectedDurationMs >= 0 &&
     Number.isFinite(c.expectedCostUsd) && c.expectedCostUsd >= 0 &&
-    Number.isFinite(c.estimatedQuality) && c.estimatedQuality >= policy.minQuality &&
+    Number.isFinite(c.estimatedQuality) && c.estimatedQuality >= policy.minQuality && c.estimatedQuality <= 1 &&
     c.expectedDurationMs <= deadline &&
     (policy.maxCostUsd === undefined || c.expectedCostUsd <= policy.maxCostUsd));
   eligible.sort((a,b) =>
