@@ -41,3 +41,20 @@ test('generated opportunity never fabricates savings',async()=>{
  assert.equal(result[0].evidence,'hypothesis');
  assert.equal(result[0].estimatedBenefitMinor,undefined);
 });
+
+test('customer can introduce an entirely new value metric and control its weight',async()=>{
+ const {normalizeCustomerWeights,evaluateCustomerValue}=await import('../src/customer-value-evaluator.js');
+ const criteria=[{id:'wellbeing',label:'Employee wellbeing',description:'Reduced employee strain',
+  metric:'employee_wellbeing',weight:80,enabled:true,minimumEvidence:'customer_attested' as const},
+  {id:'quality',label:'Quality',metric:'quality',weight:20,enabled:true,
+   minimumEvidence:'measured' as const}];
+ assert.equal(normalizeCustomerWeights(criteria)[0].normalizedWeightPct,80);
+ const result=evaluateCustomerValue({partnerId:'p',customerId:'c',
+  rubric:{partnerId:'p',customerId:'c',revision:1,owner:'CUSTOMER',criteria},
+  records:[{id:'r',tenantId:'c',provider:'p',amountMinor:100,currency:'USD',
+   occurredAt:'2026-11-10T12:00:00Z',actorId:'a',department:'d',useCase:'w',model:'m'}],
+  signals:[{id:'s',actorId:'a',useCase:'w',metric:'employee_wellbeing',
+   description:'Customer-defined outcome',evidence:'customer_attested'}]});
+ assert.equal(result.findings[0].normalizedCustomerWeightPct,80);
+ assert.equal(result.findings[0].status,'ELIGIBLE_FOR_CUSTOMER_DECISION');
+});

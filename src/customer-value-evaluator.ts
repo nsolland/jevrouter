@@ -3,8 +3,8 @@
  */
 import type {SpendRecord} from './spend-intelligence.js';
 import {createHash} from 'node:crypto';
-export type ValueCriterion={id:string;label:string;weight:number;enabled:boolean;
- metric:'cost_reduction'|'time_saved'|'quality'|'revenue'|'risk_reduction'|'customer_experience';
+export type ValueCriterion={id:string;label:string;description?:string;weight:number;enabled:boolean;
+ metric:string;
  minimumEvidence:'measured'|'customer_attested'|'hypothesis'};
 export type ValueRubric={partnerId:string;customerId:string;revision:number;
  owner:'CUSTOMER';criteria:ValueCriterion[]};
@@ -13,8 +13,8 @@ export type ValueSignal={id:string;actorId:string;useCase:string;
  evidence:'measured'|'customer_attested'|'hypothesis';
  sourceId?:string;estimatedBenefitMinor?:number};
 const evidenceRank={hypothesis:0,customer_attested:1,measured:2};
-const metrics=new Set<ValueCriterion['metric']>(['cost_reduction','time_saved','quality',
- 'revenue','risk_reduction','customer_experience']);
+const validMetric=(metric:unknown):metric is string=>typeof metric==='string'&&
+ /^[a-z][a-z0-9_]{0,63}$/.test(metric);
 /** Normalize customer-defined relative priorities without changing raw observations. */
 export function normalizeCustomerWeights(criteria:ValueCriterion[]){
  const active=criteria.filter(c=>c.enabled);
@@ -31,7 +31,9 @@ export function evaluateCustomerValue(args:{partnerId:string;customerId:string;
  rubric.criteria.length>50)throw Error('invalid_customer_rubric');
  const criterionIds=new Set<string>();
  for(const c of rubric.criteria){
-  if(!c.id||criterionIds.has(c.id)||!c.label||!metrics.has(c.metric)||
+  if(!c.id||criterionIds.has(c.id)||!c.label||c.label.length>160||
+   (c.description!==undefined&&(typeof c.description!=='string'||c.description.length>2000))||
+   !validMetric(c.metric)||
    !Number.isFinite(c.weight)||c.weight<0||c.weight>100||
    !(c.minimumEvidence in evidenceRank))throw Error('invalid_value_criterion');
   criterionIds.add(c.id);
@@ -44,7 +46,7 @@ export function evaluateCustomerValue(args:{partnerId:string;customerId:string;
  }
  const ids=new Set<string>();
  const findings=signals.map(s=>{
-  if(!s.id||ids.has(s.id)||!metrics.has(s.metric)||!s.description||
+  if(!s.id||ids.has(s.id)||!validMetric(s.metric)||!s.description||
    !actors.has(s.actorId)||!useCases.has(s.useCase)||
    !(s.evidence in evidenceRank)||
    (s.estimatedBenefitMinor!==undefined&&

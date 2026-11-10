@@ -44,6 +44,9 @@ pre{white-space:pre-wrap;overflow-wrap:anywhere}.warning{color:#8b3500;font-weig
 <p>Adjust priorities with sliders. Weights are relative and automatically normalized to 100%.
 No slider changes the underlying measurements or makes a hypothesis true.</p>
 <div id="weight-controls"></div>
+<label>New criterion name<input id="new-value-label" placeholder="E.g. employee wellbeing"></label>
+<label>What does this mean to your organization?<input id="new-value-description" placeholder="Customer-defined outcome"></label>
+<button type="button" id="add-value-criterion">Add custom criterion</button>
 <button type="button" id="default-weights">Load editable example weights</button>
 <label>Criteria JSON (advanced)<textarea id="value-criteria" rows="7" style="width:100%" spellcheck="false">[{"id":"quality","label":"Quality","weight":100,"enabled":true,"metric":"quality","minimumEvidence":"measured"}]</textarea></label>
 <button type="button" id="save-rubric">Save customer criteria</button>
@@ -130,12 +133,27 @@ function renderWeights(){
   toggle.addEventListener('change',()=>{c.enabled=toggle.checked;syncWeights(criteria);});
   slider.addEventListener('input',()=>{c.weight=Number(slider.value);syncWeights(criteria);});
   label.append(toggle,document.createTextNode(' '+c.label+' '),slider,number);
-  row.append(label);host.append(row);
+  const remove=document.createElement('button');remove.type='button';remove.textContent='Remove';
+  remove.addEventListener('click',()=>syncWeights(criteria.filter(x=>x.id!==c.id)));
+  row.append(label,remove);host.append(row);
  }
 }
 function syncWeights(criteria){document.getElementById('value-criteria').value=JSON.stringify(criteria,null,2);renderWeights();}
 document.getElementById('default-weights').addEventListener('click',()=>{
  syncWeights(weightExamples.map(c=>({...c,enabled:true,minimumEvidence:'customer_attested'})));
+});
+document.getElementById('add-value-criterion').addEventListener('click',()=>{
+ const name=get('new-value-label').trim(),description=get('new-value-description').trim();
+ const status=document.getElementById('rubric-status');
+ if(!name||name.length>160||description.length>2000){status.textContent='Enter a valid criterion name';return;}
+ let criteria;try{criteria=JSON.parse(get('value-criteria'));if(!Array.isArray(criteria))throw Error();}
+ catch{status.textContent='Fix criteria JSON before adding';return;}
+ if(criteria.length>=50){status.textContent='Maximum 50 criteria';return;}
+ const id='custom_'+Math.random().toString(36).slice(2,12);
+ criteria.push({id,label:name,description,metric:id,weight:10,enabled:true,
+  minimumEvidence:'customer_attested'});
+ syncWeights(criteria);document.getElementById('new-value-label').value='';
+ document.getElementById('new-value-description').value='';status.textContent='Criterion added; save to apply';
 });
 document.getElementById('value-criteria').addEventListener('input',renderWeights);
 renderWeights();
