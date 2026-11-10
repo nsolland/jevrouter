@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtemp,writeFile,chmod,readFile} from 'node:fs/promises';
+import {mkdtemp,writeFile,chmod,readFile,mkdir,utimes} from 'node:fs/promises';
 import {join} from 'node:path';
 import {tmpdir} from 'node:os';
 import {PartnerRegistry} from '../src/partner-registry.js';
@@ -95,4 +95,24 @@ test('parallel source onboarding preserves every tenant binding',async()=>{
  assert.equal(data.tenants.length,12);
  assert.deepEqual(data.tenants.map((t:{customerId:string})=>t.customerId).sort(),
   Array.from({length:12},(_,i)=>'client'+i).sort());
+});
+
+test('dead-owner tenant lock is recovered without losing config',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'stale-source-'));
+ const registryFile=join(dir,'registry.json'),file=join(dir,'tenants.json');
+ const registry=new PartnerRegistry(registryFile),token='a'.repeat(48);
+ await registry.provision({partnerId:'p',productName:'P',domain:'p.example.org',
+  supportEmail:'ops@example.org',legalEntity:'P'},token);
+ await registry.addCustomer('p',token,{partnerId:'p',customerId:'c',displayName:'C',
+  enabled:true,allowedDomains:[]});
+ const lock=file+'.lock';await mkdir(lock,{mode:0o700});
+ await writeFile(lock+'/owner.json',JSON.stringify({pid:2147483647,createdAt:1}),{mode:0o600});
+ const old=new Date(Date.now()-12000);await utimes(lock,old,old);
+ const result=await configurePartnerSourceFromEnv({SPEND_REGISTRY_FILE:registryFile,
+  SPEND_TENANTS_FILE:file,SPEND_PARTNER_ID:'p',SPEND_PARTNER_TOKEN:token,
+  SPEND_CUSTOMER_ID:'c',SPEND_SOURCE:'litellm',
+  SPEND_SOURCE_URL:'https://provider.example.org',SPEND_SOURCE_API_KEY:'key',
+  SPEND_SOURCE_TEAM_ID:'team'});
+ assert.equal(result.configured,true);
+ assert.equal(JSON.parse(await readFile(file,'utf8')).tenants.length,1);
 });

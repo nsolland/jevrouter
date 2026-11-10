@@ -2,7 +2,7 @@
  * Environment variables are inherited from the operator's secret manager.
  */
 import {randomBytes} from 'node:crypto';
-import {readFile,stat,mkdir,writeFile,rename,chmod,rmdir} from 'node:fs/promises';
+import {readFile,stat,mkdir,writeFile,rename,chmod,rmdir,unlink} from 'node:fs/promises';
 import {dirname} from 'node:path';
 import {PartnerRegistry} from './partner-registry.js';
 import {createConfiguredPartnerService,createMultiPartnerService,listenPartnerService} from './partner-service.js';
@@ -90,11 +90,37 @@ export async function configurePartnerSourceFromEnv(env:NodeJS.ProcessEnv=proces
   secretKey:required(env,'SPEND_SOURCE_SECRET_KEY')};
  await mkdir(dirname(file),{recursive:true,mode:0o700});
  const lock=file+'.lock';
+ const ownerFile=lock+'/owner.json';
  let acquired=false;
  for(let attempt=0;attempt<80;attempt++){
-  try{await mkdir(lock,{mode:0o700});acquired=true;break;}
-  catch(e){if((e as NodeJS.ErrnoException).code!=='EEXIST')throw e;
-   await new Promise(resolve=>setTimeout(resolve,25));}
+  try{
+   await mkdir(lock,{mode:0o700});acquired=true;
+   await writeFile(ownerFile,JSON.stringify({pid:process.pid,createdAt:Date.now()}),
+    {flag:'wx',mode:0o600});break;
+  }catch(e){if(acquired)throw e;
+   if((e as NodeJS.ErrnoException).code!=='EEXIST')throw e;
+   // Only recover a demonstrably dead local owner. Unknown/foreign owners fail closed.
+   try{
+    const info=await stat(lock);
+    if(Date.now()-info.mtimeMs>5000){
+     const owner=JSON.parse(await readFile(ownerFile,'utf8')) as {pid:number};
+     if(Number.isSafeInteger(owner.pid)&&owner.pid>0){
+      let alive=true;
+      try{process.kill(owner.pid,0);}catch(err){
+       if((err as NodeJS.ErrnoException).code==='ESRCH')alive=false;
+      }
+      if(!alive){
+       const fresh=await stat(lock);
+       if(fresh.ino===info.ino&&fresh.mtimeMs===info.mtimeMs){
+        await unlink(ownerFile);await rmdir(lock);continue;
+       }
+      }
+     }
+    }
+   }catch(err){if(!['ENOENT','ENOTEMPTY','EEXIST'].includes(
+    (err as NodeJS.ErrnoException).code??''))throw err;}
+   await new Promise(resolve=>setTimeout(resolve,25));
+  }
  }
  if(!acquired)throw Error('tenant_config_lock_busy');
  try{
@@ -115,5 +141,5 @@ export async function configurePartnerSourceFromEnv(env:NodeJS.ProcessEnv=proces
  await writeFile(temp,JSON.stringify({tenants}),{flag:'wx',mode:0o600});
  await rename(temp,file);await chmod(file,0o600);
  return {partnerId,customerId,source,configured:true,restartRequired:true};
- }finally{await rmdir(lock);}
+ }finally{await unlink(ownerFile);await rmdir(lock);}
 }
