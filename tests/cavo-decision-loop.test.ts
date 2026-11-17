@@ -70,3 +70,18 @@ test('rejects malformed outcomes and allocation policies instead of persisting u
   outcomes:[{criterionId:'quality',baseline:1,target:2,unit:'score',
    evidence:'FAKE' as never}]}),/invalid_follow_up/);
 });
+
+test('untrusted malformed CAVO payloads fail with domain errors',()=>{
+ const loop=new CavoDecisionLoop('customer');
+ assert.throws(()=>loop.addInitiative(null as never),/invalid_initiative/);
+ assert.throws(()=>loop.addAllocationRule(null as never),/invalid_allocation_rule/);
+ assert.throws(()=>loop.addCost(null as never),/invalid_cost_event/);
+ assert.throws(()=>loop.recommend(null as never),/invalid_recommendation/);
+ assert.throws(()=>loop.customerDecision(null as never),/invalid_customer_decision/);
+ assert.throws(()=>loop.followUp(null as never),/invalid_follow_up/);
+ loop.addInitiative({id:'i',customerId:'customer',rubricRevision:1,title:'Test',outcomes:[]});
+ loop.recommend({id:'r',initiativeId:'i',description:'Test',assumptions:[]});
+ assert.throws(()=>loop.customerDecision({id:'d',recommendationId:'r',choice:'PROCEED',
+  rationale:null as never,customerActor:'customer',at:'2026-11-10T12:00:00Z'}),/invalid_customer_decision/);
+ assert.equal(loop.audit().count,2);
+});

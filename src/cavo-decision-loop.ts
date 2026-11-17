@@ -24,8 +24,10 @@ type Event={seq:number;kind:'INITIATIVE'|'ALLOCATION_RULE'|'COST'|'RECOMMENDATIO
  payload:Initiative|AllocationRule|CostEvent|Recommendation|CustomerDecision|FollowUp;
  previousHash:string;hash:string};
 const validAmount=(n:number)=>Number.isSafeInteger(n)&&n>=0;
-const validOutcome=(o:Outcome)=>o&&typeof o.criterionId==='string'&&!!o.criterionId&&
- typeof o.unit==='string'&&!!o.unit&&['HYPOTHESIS','CUSTOMER_ATTESTED','MEASURED'].includes(o.evidence)&&
+const nonempty=(v:unknown):v is string=>typeof v==='string'&&v.trim().length>0;
+const validDate=(v:unknown)=>nonempty(v)&&Number.isFinite(Date.parse(v));
+const validOutcome=(o:Outcome)=>o&&nonempty(o.criterionId)&&
+ nonempty(o.unit)&&['HYPOTHESIS','CUSTOMER_ATTESTED','MEASURED'].includes(o.evidence)&&
  (typeof o.baseline==='string'||Number.isFinite(o.baseline))&&
  (typeof o.target==='string'||Number.isFinite(o.target))&&
  (o.actual===undefined||typeof o.actual==='string'||Number.isFinite(o.actual));
@@ -68,14 +70,14 @@ export class CavoDecisionLoop{
   const full={...event,hash:hash(event)};this.events.push(full);this.ids.add(kind+':'+id);
  }
  addInitiative(v:Initiative){
-  if(v.customerId!==this.customerId||!v.id||!v.title||
+  if(!v||v.customerId!==this.customerId||!nonempty(v.id)||!nonempty(v.title)||
    !Number.isSafeInteger(v.rubricRevision)||v.rubricRevision<1||
    !Array.isArray(v.outcomes)||!v.outcomes.every(validOutcome))
    throw Error('invalid_initiative');
   this.append('INITIATIVE',v,v.id);this.initiatives.set(v.id,structuredClone(v));
  }
  addAllocationRule(v:AllocationRule){
-  if(!v.id||!Number.isSafeInteger(v.version)||v.version<1||
+  if(!v||!nonempty(v.id)||!Number.isSafeInteger(v.version)||v.version<1||
    !['DIRECT','USAGE','PROPORTIONAL'].includes(v.method)||
    !v.shares||typeof v.shares!=='object'||Array.isArray(v.shares)||
  !Object.values(v.shares).every(n=>Number.isFinite(n)&&n>=0)||
@@ -85,30 +87,30 @@ export class CavoDecisionLoop{
   this.append('ALLOCATION_RULE',v,key);this.rules.set(key,structuredClone(v));
  }
  addCost(v:CostEvent){
-  if(!v.id||!validAmount(v.amountMinor)||!/^[A-Z]{3}$/.test(v.currency)||
-   !v.actorId||!v.workflowId||!['SUCCESS','FAILED','RETRY'].includes(v.attempt)||
+  if(!v||!nonempty(v.id)||!validAmount(v.amountMinor)||typeof v.currency!=='string'||!/^[A-Z]{3}$/.test(v.currency)||
+   !nonempty(v.actorId)||!nonempty(v.workflowId)||!['SUCCESS','FAILED','RETRY'].includes(v.attempt)||
    !this.rules.has(v.ruleId+':'+v.ruleVersion))throw Error('invalid_cost_event');
   this.append('COST',v,v.id);
  }
  recommend(v:Recommendation){
-  if(!v.id||!this.initiatives.has(v.initiativeId)||!v.description||
+  if(!v||!nonempty(v.id)||!this.initiatives.has(v.initiativeId)||!nonempty(v.description)||
    (v.forecastBenefitMinor!==undefined&&!validAmount(v.forecastBenefitMinor))||
    (v.forecastCostMinor!==undefined&&!validAmount(v.forecastCostMinor))||
-   !Array.isArray(v.assumptions))throw Error('invalid_recommendation');
+   !Array.isArray(v.assumptions)||!v.assumptions.every(nonempty))throw Error('invalid_recommendation');
   this.append('RECOMMENDATION',v,v.id);this.recommendations.set(v.id,structuredClone(v));
  }
  customerDecision(v:CustomerDecision){
-  if(!v.id||!this.recommendations.has(v.recommendationId)||
-   !['PROCEED','REJECT','DEFER'].includes(v.choice)||!v.rationale.trim()||
-   !v.customerActor||!Number.isFinite(Date.parse(v.at)))throw Error('invalid_customer_decision');
+  if(!v||!nonempty(v.id)||!this.recommendations.has(v.recommendationId)||
+   !['PROCEED','REJECT','DEFER'].includes(v.choice)||!nonempty(v.rationale)||
+   !nonempty(v.customerActor)||!validDate(v.at))throw Error('invalid_customer_decision');
   this.append('DECISION',v,v.id);this.decisions.set(v.id,structuredClone(v));
  }
  followUp(v:FollowUp){
-  const decision=this.decisions.get(v.decisionId);
-  if(!v.id||!decision||decision.choice!=='PROCEED'||typeof v.implemented!=='boolean'||
-   !validAmount(v.actualCostMinor)||!Number.isFinite(Date.parse(v.at))||
+  const decision=v&&this.decisions.get(v.decisionId);
+  if(!v||!nonempty(v.id)||!decision||decision.choice!=='PROCEED'||typeof v.implemented!=='boolean'||
+   !validAmount(v.actualCostMinor)||!validDate(v.at)||
    (v.realizedBenefitMinor!==undefined&&!validAmount(v.realizedBenefitMinor))||
-   !Array.isArray(v.sourceIds)||!Array.isArray(v.outcomes)||!v.outcomes.every(validOutcome)||
+   !Array.isArray(v.sourceIds)||!v.sourceIds.every(nonempty)||!Array.isArray(v.outcomes)||!v.outcomes.every(validOutcome)||
    !['HYPOTHESIS','CUSTOMER_ATTESTED','MEASURED'].includes(v.evidence)||
    (v.realizedBenefitMinor!==undefined&&(v.evidence==='HYPOTHESIS'||!v.sourceIds.length))||
    (!v.implemented&&v.realizedBenefitMinor!==undefined))throw Error('invalid_follow_up');
