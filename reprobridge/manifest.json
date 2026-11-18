@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "name": "JevRouter-pairwise-routing-v1",
+  "python_version": "3.12",
+  "files": {
+    "src/routing/routellm-pairwise.ts": "6f358b950113bdb028184b42cbd778eaef625fcf55fb6db6dcfa1291a8832b72",
+    "tests/reprobridge-pairwise.test.mjs": "283e95978a829d57846bbc894766c55d307d2151764a93552683d38eef878555"
+  },
+  "steps": [
+    {
+      "argv": [
+        "node",
+        "--experimental-strip-types",
+        "--test",
+        "tests/reprobridge-pairwise.test.mjs"
+      ],
+      "timeout_seconds": 60
+    }
+  ]
+}
