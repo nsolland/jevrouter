@@ -9,6 +9,7 @@ export type CallObservation={
  tenantId:string;callId:string;actorId:string|null;taskId:string|null;
  taskClass:string|null;difficulty:Difficulty|null;modelId:string;
  costMicros:number|null;currency:string;costOrigin:CostOrigin;
+ observedProfile?:string|null;observedPlatform?:string|null;observedCronJobId?:string|null;
  occurredAt:string;outcome:'ACCEPTED'|'REJECTED'|'UNKNOWN';
  outcomeIndependentlyVerified:boolean;capabilities:string[];evidenceRef:string;
 };
@@ -41,6 +42,7 @@ export function analyzeRetrospectiveModelValue({
  checkedPolicy(policy);
  const seen=new Set<string>(),actorRows=new Map<string,{actorId:string;calls:number;observedMicros:number;unknownCostCalls:number;verifiedAccepted:number;unverifiedOutcomes:number;potentialSavingsMicros:number;reviewCandidateCalls:number;}>();
  const byModel=new Map<string,{modelId:string;calls:number;observedMicros:number;unknownCostCalls:number;verifiedAccepted:number;reviewCandidateCalls:number;potentialSavingsMicros:number;}>();
+ const observedOriginGroups=new Map<string,{observedProfile:string|null;observedPlatform:string|null;observedCronJobId:string|null;calls:number;observedMicros:number}>();
  const modelTaskUsage=new Map<string,{modelId:string;taskClass:string;difficulty:string;calls:number;observedMicros:number;reviewCandidateCalls:number}>();
  const opportunities: Array<{callId:string;taskClass:string;difficulty:Difficulty;currentModel:string;alternativeModel:string;observedMicros:number;alternativeMeanMicros:number;potentialSavingsMicros:number;alternativeEvidenceRef:string;status:'REVIEW_ONLY'}>=[];
  let unattributedCalls=0,unpricedCalls=0,comparableCalls=0,verifiedOutcomes=0,observedCostMicros=0;
@@ -63,8 +65,17 @@ export function analyzeRetrospectiveModelValue({
    typeof c.outcomeIndependentlyVerified!=='boolean'||
    !Array.isArray(c.capabilities)||!c.capabilities.every(id)||!id(c.evidenceRef))
     throw Error('INVALID_CALL_OBSERVATION');
+  for(const origin of [c.observedProfile,c.observedPlatform,c.observedCronJobId]) {
+   if(origin!==undefined&&origin!==null&&!id(origin))throw Error('INVALID_OBSERVED_ORIGIN');
+  }
   if(c.costOrigin==='unknown'&&c.costMicros!==null)throw Error('UNSOURCED_COST');
   seen.add(c.callId);
+  const observedProfile=c.observedProfile??null,observedPlatform=c.observedPlatform??null,observedCronJobId=c.observedCronJobId??null;
+  const originKey=JSON.stringify([observedProfile,observedPlatform,observedCronJobId]);
+  const origin=observedOriginGroups.get(originKey)??{observedProfile,observedPlatform,observedCronJobId,calls:0,observedMicros:0};
+  origin.calls++;
+  if(c.costMicros!==null)origin.observedMicros+=c.costMicros;
+  observedOriginGroups.set(originKey,origin);
   const actor=c.actorId??'UNATTRIBUTED';
   if(!c.actorId||!c.taskId)unattributedCalls++;
   if(c.costMicros===null)unpricedCalls++;
@@ -112,7 +123,8 @@ export function analyzeRetrospectiveModelValue({
  const report={schema:'jevrouter.retrospective-model-value.v1' as const,tenantId,period,currency,
    observedCostMicros,totalCalls:calls.length,verifiedOutcomes,unpricedCalls,unattributedCalls,
    comparableCalls,reviewCandidateCalls:opportunities.length,totalPotentialSavingsMicros,
-   actors,models,modelTaskUsage:[...modelTaskUsage.values()].sort((a,b)=>b.observedMicros-a.observedMicros||a.modelId.localeCompare(b.modelId)),opportunities,policy,
+   actors,models,observedOrigins:[...observedOriginGroups.values()].sort((a,b)=>b.observedMicros-a.observedMicros||String(a.observedPlatform).localeCompare(String(b.observedPlatform))),
+   observedOriginAttributionVerified:false,modelTaskUsage:[...modelTaskUsage.values()].sort((a,b)=>b.observedMicros-a.observedMicros||a.modelId.localeCompare(b.modelId)),opportunities,policy,
    costKind:'MIXED_OBSERVED_NOT_RECONCILED' as const,moneyUnit:'millionth_of_currency_unit' as const,
    inference:'CONDITIONAL_COUNTERFACTUAL_NOT_REALIZED_SAVINGS' as const,
    evidenceOrigin:'USER_SUPPLIED_INDEPENDENT_CLAIMS_NOT_VERIFIED_BY_THIS_FUNCTION' as const,

@@ -41,3 +41,20 @@ test('cross-tenant, duplicate, period and unproven priced rows fail closed',()=>
  assert.throws(()=>run([{...c,occurredAt:'2026-10-18T09:00:00Z'}]),/INVALID_CALL_OBSERVATION/);
  assert.throws(()=>run([{...c,costOrigin:'unknown'}]),/UNSOURCED_COST/);
 });
+
+test('observed profiles and platforms enable cost grouping but never identity or value attribution',()=>{
+ const r=run([{...c,callId:'c11',actorId:null,taskId:null,taskClass:null,difficulty:null,
+   observedProfile:'default',observedPlatform:'cron',observedCronJobId:null, outcome:'UNKNOWN',outcomeIndependentlyVerified:false},
+  {...c,callId:'c12',actorId:null,taskId:null,taskClass:null,difficulty:null,
+   observedProfile:'default',observedPlatform:'cron',observedCronJobId:null,outcome:'UNKNOWN',outcomeIndependentlyVerified:false},
+  {...c,callId:'c13',actorId:null,taskId:null,taskClass:null,difficulty:null,
+   observedProfile:null,observedPlatform:'cli',observedCronJobId:null,outcome:'UNKNOWN',outcomeIndependentlyVerified:false}]);
+ assert.equal(r.observedOrigins.length,2);
+ assert.equal(r.observedOrigins[0].calls,2);
+ assert.equal(r.observedOrigins[0].observedPlatform,'cron');
+ assert.equal(r.observedOriginAttributionVerified,false);
+ assert.equal(r.unattributedCalls,3);
+ assert.equal(r.verifiedOutcomes,0);
+ assert.equal(r.reviewCandidateCalls,0);
+ assert.throws(()=>run([{...c,observedProfile:'../../../secret'}]),/INVALID_OBSERVED_ORIGIN/);
+});
