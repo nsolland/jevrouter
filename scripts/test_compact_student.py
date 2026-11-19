@@ -35,4 +35,24 @@ class CompactStudentTest(unittest.TestCase):
             a["sha256"]="invalid"
             p.write_text(json.dumps(a))
             with self.assertRaises(ValueError):load_artifact(p)
+
+    def test_high_confidence_model_cannot_override_observed_hazards(self):
+        a=artifact()  # strongly favors inspect regardless of state
+        risky=[
+          {**sample(),"obstacle_m":1.5},
+          {**sample(),"wind_mps":20.0},
+          {**sample(),"battery":0.1},
+          {**sample(),"link":0.1},
+        ]
+        for item in risky:
+            with self.subTest(item=item):
+                self.assertEqual(choose(a,item)["status"],"no_decision")
+        self.assertEqual(choose(a,sample())["status"],"choice")
+
+    def test_valid_return_not_silenced_by_low_battery(self):
+        a=artifact()
+        a["layers"][1]["b"]=[-8,0,8]  # synthetic model favors return
+        low_battery={**sample(),"battery":0.05}
+        self.assertEqual(choose(a,low_battery)["action"],"return")
+
 if __name__=="__main__":unittest.main()
