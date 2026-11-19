@@ -147,3 +147,35 @@ Measurements exclude sensors, data preprocessing outside the model,
 actuation, an actual Jev inference call, and drone hardware. The attached
 model is an inspectable prototype, not a qualified deployment package,
 cryptographically authenticated supply-chain artifact or certified model.
+
+## Real Salad Container Engine CPU execution — 2026-11-19
+
+The synthetic 5→16→3 compact student was submitted to the existing
+`valoresearch/exup` Salad account using a dedicated group
+`jev-intcomp-salad-1119-a1` with `python:3.12-slim`, two requested
+vCPUs and 2 GB memory, without a GPU. The container ran the actual
+dependency-free `compact_student_runtime.py` inference and
+`benchmark_compact_student.py` on the packaged 3,396-byte model
+artifact (file SHA-256 `5b50ada87490bce30fc4ddceccfaf362555c57e9c8795d1bc3b240a23066752c`).
+No training or Jev d1.1 endpoint call happened on Salad.
+
+Salad's own JSON logs reported **five distinct successful instance executions**,
+each running 3 × 5,000 samples; all 75,000 inferencer calls used the same
+seeded synthetic evaluation data and each reported 2,330 accepted choices,
+2,670 abstentions and zero violations of the *synthetic* domain rule
+per 5,000 cases. Across the 15 measured batches, p50 was approximately
+**0.0117–0.0121 ms**, p99 **0.0145–0.0200 ms** for the model function.
+The group was independently confirmed `stopped` with zero active instances.
+
+Raw per-instance logged measurements, instance identifiers and evidence limits
+are recorded at
+`evidence/intelligence-compilation/salad-cpu-student-20261119.json`.
+The source code was compiled and transferred to the remote runtime, while
+experiment computation executed **inside Salad**.
+
+Caveats: This is **not Jev model inference** and not a real drone/flight
+benchmark. It excludes scheduling, instance startup, network and sensors,
+as well as real-time scheduling guarantees. The five logged completions
+despite a single requested replica and `restart_policy=never` were not
+explained and should be examined for repeat-execution/cost control.
+No production or real-world safety claims follow from these synthetic results.
