@@ -39,3 +39,35 @@ export async function requestCompiledJevChoice(
   if(probs.some(p=>!Number.isFinite(p)||p<0||p>1)||Math.abs(probs.reduce((a,b)=>a+b,0)-1)>0.001)return abstain();
   return {...response,probabilities:{...response.probabilities}};
 }
+
+/**
+ * Sequential planner supplies bounded offline candidates, while a real external
+ * Jev provider makes the final typed decision. No authorization or execution.
+ */
+import { createHash } from "node:crypto";
+import { candidatesForJev, type SequentialPlan } from "./sequential-intelligence.js";
+export async function requestSequentialJevChoice(
+  plan: SequentialPlan,
+  state: string,
+  availableActions: readonly string[],
+  jev: JevProvider
+): Promise<JevChoiceResponse> {
+  const abstain = (): JevChoiceResponse => ({status:"no_decision",probabilities:{},confidence:0});
+  const candidates = candidatesForJev(plan,state,availableActions);
+  if (!candidates.length) return abstain();
+  const sourceDigest = createHash("sha256").update(JSON.stringify(plan)).digest("hex");
+  const request: JevChoiceRequest = {
+    state, sourceDigest,
+    candidates: candidates.map(c=>({action:c.action,estimatedReward:c.value,support:c.branches}))
+  };
+  const response=await jev(request);
+  if(response.status==="no_decision")return abstain();
+  if(response.status!=="choice"||!response.action||!candidates.some(c=>c.action===response.action)||
+     !Number.isFinite(response.confidence)||response.confidence<0||response.confidence>1||
+     !response.probabilities||typeof response.probabilities!=="object"||Array.isArray(response.probabilities))return abstain();
+  const keys=Object.keys(response.probabilities);
+  if(keys.length!==candidates.length||keys.some(k=>!candidates.some(c=>c.action===k)))return abstain();
+  const probs=Object.values(response.probabilities);
+  if(probs.some(p=>!Number.isFinite(p)||p<0||p>1)||Math.abs(probs.reduce((a,b)=>a+b,0)-1)>0.001)return abstain();
+  return {status:"choice",action:response.action,confidence:response.confidence,probabilities:{...response.probabilities}};
+}
