@@ -41,3 +41,4 @@ export {requestCompiledJevChoice,requestSequentialJevChoice} from "./intelligenc
 export type {JevChoiceRequest,JevChoiceResponse,JevProvider as IntelligenceJevProvider} from "./intelligence-jev-adapter.js";
 export * from "./sequential-intelligence.js";
 export * from "./empirical-world-model.js";
+export * from "./intelligence-native-jev.js";
