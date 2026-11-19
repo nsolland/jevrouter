@@ -213,3 +213,42 @@ Therefore: **no d1.1 latency, accuracy, response distribution or
 authenticated System One availability has been measured**. Never
 substitute the local student's measurements or the Llama chat
 endpoint's results for ZeroGPU d1.1.
+
+## ZeroGPU d1.1: authenticated access check and direct runtime invocation (2026-11-19)
+
+**Latest verified status: `PROVIDER_ACCESS_BLOCKED`**. The previous
+missing-shell-environment diagnosis was resolved: `ZGPU_API_KEY` is already
+available in Acer's systemd user environment and was independently checked
+to match the existing Hermes secret-store value **without displaying it**.
+Using that approved runtime path, a single `POST /v1/systemone` request
+with Bearer authentication returned **HTTP 403**. A second, single
+request using the officially supported `x-api-key` method also returned
+**HTTP 403**. No d1.1 model answer or latency distribution was obtained.
+
+The source-backed JSON record is
+`evidence/intelligence-compilation/zerogpu-d11-access-20261119.json`.
+The bounded, redacted one-shot diagnostic is
+`scripts/diagnose_zerogpu_d11.py`.
+
+On Acer, the supported direct comparison entry point is now:
+
+```sh
+# Uses the already-provisioned systemd user environment.
+# One request by default. Pass 12 after the provider authorizes d1.1.
+bash scripts/run_zerogpu_d11_systemd.sh 1
+```
+
+Do **not** copy the key into terminal commands or repository files.
+The wrapper uses systemd's established user environment and the same
+comparison script as local mode. It does not repeat on 403 and prints no
+credential. This is a transport/configuration fix, **not** a bypass of
+ZeroGPU's server-side authorization. The remaining documented dependency
+is ZeroGPU-side permission for `d1.1` on `/v1/systemone` under the
+configured account/project or an appropriately authorized credential.
+HTTP 403 does not by itself establish whether the rejection is due to
+model entitlement, account/project policy or another provider-side rule.
+
+On Acer, the new diagnostic unit tests 4/4, comparison unit tests 5/5,
+compact student tests 6/6, Node tests 238/238, TypeScript typecheck and
+shell syntax check all passed. The original repository working branch
+was restored. **No d1.1 vs student accuracy/latency claim is justified.**
