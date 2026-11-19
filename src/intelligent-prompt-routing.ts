@@ -12,7 +12,7 @@ export async function routeIntelligentPrompt(args:{
  kiss?:Omit<KissInput,'request'>;
 }):Promise<{status:'abstain'|'routed'|'kiss'; reason:string; plan:ReturnType<typeof planPrompt>;
  result?:RouteResult; evidenceIds:string[]; kissDecision:KissDecision}> {
- const kissDecision=selectKissExecution({...args.kiss, request:args.input.originalPrompt, requiresAction:args.input.requiresAction || args.kiss?.requiresAction===true});
+ const kissDecision=selectKissExecution({...args.kiss, request:args.input.originalPrompt, maxCostMinor:Math.min(args.input.maxCostMinor, args.kiss?.maxCostMinor ?? args.input.maxCostMinor), requiresAction:args.input.requiresAction || args.kiss?.requiresAction===true});
  const plan=planPrompt(args.input);
  const abstain=(reason:string)=>({status:'abstain' as const,reason,plan,evidenceIds:[],kissDecision});
  if(kissDecision.mode==='deterministic') return {status:'kiss' as const,reason:kissDecision.reason,plan,evidenceIds:[],kissDecision};
