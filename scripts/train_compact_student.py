@@ -61,6 +61,17 @@ def main():
     path=Path(args.artifact)
     path.write_text(json.dumps(artifact,sort_keys=True,separators=(",",":")))
     loaded=load_artifact(path)
+    # Measure selective student accuracy on independent synthetic holdout samples.
+    selected=0
+    correct=0
+    for row, target in zip(test_x, test_y):
+        observation={"battery":float(row[0]),"obstacle_m":float(row[1]*30),
+                     "wind_mps":float(row[2]*25),"link":float(row[3]),"sensor":float(row[4])}
+        decision=choose(loaded,observation)
+        if decision["status"]=="choice":
+            selected+=1
+            if ACTIONS[int(target)]==decision["action"]:correct+=1
+    selective_accuracy=correct/selected if selected else None
     rng=random.Random(991)
     observations=[{"battery":rng.random(),"obstacle_m":rng.random()*30,"wind_mps":rng.random()*25,
                    "link":rng.random(),"sensor":rng.random()} for _ in range(500)]
@@ -74,7 +85,7 @@ def main():
     times.sort()
     def percentile(p):return round(times[min(len(times)-1,int((len(times)-1)*p))],6)
     print(json.dumps({"artifact":str(path),"sha256":artifact["sha256"],"bytes":path.stat().st_size,
-       "synthetic_heldout_accuracy":round(accuracy,4),"train_n":len(train_y),"heldout_n":len(test_y),
+       "synthetic_heldout_accuracy":round(accuracy,4),"synthetic_selective_accuracy":round(selective_accuracy,4) if selective_accuracy is not None else None,"selected_heldout_n":selected,"selected_heldout_coverage":round(selected/len(test_y),4),"train_n":len(train_y),"heldout_n":len(test_y),
        "training_epochs":model.n_iter_,"inference":"pure_python_cpu",
        "latency_ms":{"p50":percentile(.5),"p95":percentile(.95),"p99":percentile(.99)},
        "counts":counts,"warning":"SYNTHETIC student policy, not Jev, no real-world safety or drone latency"},sort_keys=True))
