@@ -55,4 +55,18 @@ class CompactStudentTest(unittest.TestCase):
         low_battery={**sample(),"battery":0.05}
         self.assertEqual(choose(a,low_battery)["action"],"return")
 
+
+    def test_published_synthetic_artifact_loads_and_enforces_bounds(self):
+        p=Path(__file__).resolve().parents[1]/"examples"/"intelligence"/"synthetic-student-v1.json"
+        model=load_artifact(p)
+        self.assertEqual(model["training_source"],"deterministic_synthetic_teacher")
+        self.assertEqual(choose(model,{**sample(),"sensor":0.1})["status"],"no_decision")
+        self.assertEqual(choose(model,{**sample(),"obstacle_m":1.0})["status"],"no_decision")
+
+    def test_numeric_overflow_abstains(self):
+        a=artifact()
+        a["layers"][0]["w"][0]=[1e308]*5
+        # Finite weights are representable but dot products may overflow.
+        self.assertEqual(choose(a,sample())["status"],"no_decision")
+
 if __name__=="__main__":unittest.main()
