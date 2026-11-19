@@ -95,3 +95,13 @@ Run `npm run build && node scripts/benchmark-intelligence.mjs 5000` (Node 22). B
 | `requestSequentialJevChoice` with mocked provider | 0.023564 | 0.041669 | 0.107083 |
 
 `npm run typecheck`: PASS; `npm test`: 238/238 PASS. CPU-level timings can change with host load, JIT, GC and hardware. No physical edge latency, live d1.1 inference or safety claim is established. No systemone command exists in the installed Hermes ZeroGPU lean CLI; its earlier working `llama-3.1-8b-instruct-fast` chat call is a distinct endpoint.
+
+## Actual small learned CPU policy prototype (Acer, experimental)
+
+Added `scripts/train_compact_student.py` (offline scikit-learn MLP training), `scripts/compact_student_runtime.py` (dependency-free portable Python inference) and `scripts/test_compact_student.py` (two integrity and no-decision tests). The student is a 5-feature → 16 ReLU → 3-action model, trained from a **synthetic rule-based teacher**, not Jev, real flight logs or ZeroGPU. An offline trained policy is only advisory; Jev remains the separate final decision model in the architecture, and safety-critical control must remain external.
+
+Reproducible Acer command: `OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THREADS=1 PYTHONDONTWRITEBYTECODE=1 python3 scripts/train_compact_student.py --epochs 60 --train-count 4500 --test-count 1500 --artifact /tmp/intcomp-student-v1.json`.
+
+Observed at SHA `6fe989507bf81af65ea4bd124515b7145421b839`: 2/2 Python tests, 238/238 Node tests and TypeScript typecheck all passed. Learned portable artifact: 3,396 bytes, digest `8da1a6bb8f714e9d0fef27ee5d440f4fca961b86c201826e9085177a634333f9`. Training had 2,936 in-scope synthetic observations and a separate 992-observation in-scope synthetic holdout: raw accuracy 90.73%; selective accuracy among 749 accepted decisions 97.60%; selective coverage 75.50%. Another 500-observation timing probe showed p50 0.0833 ms, p95 0.1133 ms, p99 0.2041 ms in pure Python CPU. Do not equate these numbers with Jev inference latency, autonomous safety, calibration, flight hardware performance, or generalization. Training reached 60 maximum iterations before full convergence; accuracy and latency are benchmark observations only. The earlier PyTorch attempt failed under Acer resource pressure with bus error; CPU sklearn training completed.
+
+The exported artifact is local under `/tmp`, **not shipped with repository and not deployed**. For production evaluation, use independent real-world episode-grouped holdouts, OOD checks, a domain safety mechanism, power/thermal profiling and physical hardware-in-loop tests. No real-world physical model or local Jev weights were available in this run.
