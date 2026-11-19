@@ -83,3 +83,15 @@ ZeroGPU documents POST https://api.zerogpu.ai/v1/systemone as a native typed dec
 Example: `const provider = createZeroGpuCompilationDecisionProvider({apiKey: process.env.ZGPU_API_KEY ?? ""}); const choice = await requestSequentialJevChoice(plan,"base",["inspect","hold"],provider);`
 
 This is remote decision inference, not edge/offline execution. The older 403 response from GET /v1/models does not by itself establish whether POST /v1/systemone accepts the key. A live authenticated decision is still unverified. Locally on Acer at 91af93d, `npm run typecheck` and `npm test` passed (238/238, 0 failed), with mock HTTP transport for the ZeroGPU tests.
+
+## Reproducible local CPU latency benchmark (Acer)
+
+Run `npm run build && node scripts/benchmark-intelligence.mjs 5000` (Node 22). Benchmark measures pure compiled lookup, sequential candidate filtering, and a **mocked** Jev adapter. It does not invoke ZeroGPU or a real Jev decision model. Recorded on Acer (2026-11-19), 5000 samples each:
+
+| Path | p50 (ms) | p95 (ms) | p99 (ms) |
+|---|---:|---:|---:|
+| `decideCompiled` | 0.002204 | 0.005912 | 0.012543 |
+| `candidatesForJev` | 0.002334 | 0.003617 | 0.007063 |
+| `requestSequentialJevChoice` with mocked provider | 0.023564 | 0.041669 | 0.107083 |
+
+`npm run typecheck`: PASS; `npm test`: 238/238 PASS. CPU-level timings can change with host load, JIT, GC and hardware. No physical edge latency, live d1.1 inference or safety claim is established. No systemone command exists in the installed Hermes ZeroGPU lean CLI; its earlier working `llama-3.1-8b-instruct-fast` chat call is a distinct endpoint.
