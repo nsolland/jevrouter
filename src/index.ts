@@ -38,3 +38,4 @@ export * from "./intelligence-compilation.js";
 export * from "./scenario-simulator.js";
 export * from "./intelligence-jev-adapter.js";
 export * from "./sequential-intelligence.js";
+export * from "./empirical-world-model.js";
