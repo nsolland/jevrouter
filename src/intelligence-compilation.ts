@@ -86,3 +86,25 @@ export function evaluateHoldout(policy: CompiledPolicy, rows: Outcome[]): {evalu
   }
   return {evaluated,abstained,accuracy:evaluated?correct/evaluated:null,meanReward:evaluated?reward/evaluated:null};
 }
+
+/**
+ * Evaluate only outcomes where the observed action matches the compiled choice.
+ * This is coverage / observed outcome monitoring, NOT counterfactual policy
+ * evaluation, safety certification, or accuracy against an optimal oracle.
+ */
+export function evaluateObservedHoldout(policy:CompiledPolicy,rows:Outcome[]):{
+  observations:number;matched:number;unmatched:number;abstained:number;
+  observedMeanReward:number|null;observedUnsafeRate:number|null;
+}{
+ let observations=0,matched=0,unmatched=0,abstained=0,reward=0,unsafe=0;
+ for(const row of rows){
+  if(row.partition!=="holdout")continue;
+  if(!nonempty(row.state)||!nonempty(row.action)||!Number.isFinite(row.reward)||typeof row.safe!=="boolean")throw new Error("invalid holdout observation");
+  observations++;
+  const selected=decideCompiled(policy,row.state,policy.states[row.state]?.candidates.map(x=>x.action)??[]);
+  if(selected.status!=="choice"){abstained++;continue;}
+  if(selected.action!==row.action){unmatched++;continue;}
+  matched++;reward+=row.reward;if(!row.safe)unsafe++;
+ }
+ return {observations,matched,unmatched,abstained,observedMeanReward:matched?reward/matched:null,observedUnsafeRate:matched?unsafe/matched:null};
+}
