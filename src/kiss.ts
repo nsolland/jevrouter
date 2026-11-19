@@ -1,3 +1,4 @@
+/** @deprecated Compatibility export only. KISS, goal contracts and escalation are owned by AI Bridge (nsolland/ai-bridge). Do not add new orchestration here. */
 /** KISS preflight: choose the least capable sufficient execution shape.
  * This routine only recommends a route. It never calls models or executes effects.
  * Unknown or conflicting evidence escalates; a cheap route is never inferred from
