@@ -58,12 +58,18 @@ def choose(artifact, observation, minimum_confidence=0.8):
     x = [values[0], values[1] / 30, values[2] / 25, values[3], values[4]]
     for index, layer in enumerate(artifact["layers"]):
         x = [sum(w * a for w, a in zip(row, x)) + b for row, b in zip(layer["w"], layer["b"])]
+        if any(not isfinite(v) for v in x):
+            return abstain
         if index == 0:
             x = [max(0, v) for v in x]
     shift = max(x)
     probs = [exp(v - shift) for v in x]
     total = sum(probs)
+    if not isfinite(total) or total <= 0:
+        return abstain
     probs = [p / total for p in probs]
+    if any(not isfinite(p) for p in probs):
+        return abstain
     best = max(range(3), key=lambda i: probs[i])
     if probs[best] < minimum_confidence:
         return abstain
