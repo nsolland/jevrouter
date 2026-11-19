@@ -33,3 +33,5 @@ export * from "./customer-roi-time.js";
 export * from "./time-aware-spend-assessment.js";
 export * from "./gemini-hydrogen.js";
 export * from "./retrospective-model-value.js";
+
+export * from "./intelligence-compilation.js";
