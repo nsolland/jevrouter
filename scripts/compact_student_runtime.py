@@ -67,4 +67,13 @@ def choose(artifact, observation, minimum_confidence=0.8):
     best = max(range(3), key=lambda i: probs[i])
     if probs[best] < minimum_confidence:
         return abstain
-    return {"status": "choice", "action": ACTIONS[best], "confidence": probs[best]}
+    chosen = ACTIONS[best]
+    # Experimental domain-specific guard derived from the synthetic teacher,
+    # NOT a certified flight safety controller. Model confidence cannot
+    # override known observable preconditions.
+    battery, obstacle, wind, link, _sensor = values
+    if (battery < 0.20 or link < 0.20) and chosen != "return":
+        return abstain
+    if (obstacle < 3.0 or wind > 18.0) and chosen == "inspect":
+        return abstain
+    return {"status": "choice", "action": chosen, "confidence": probs[best]}
