@@ -1,3 +1,4 @@
+/** @deprecated Compatibility export only. KISS, goal contracts and escalation are owned by AI Bridge (nsolland/ai-bridge). Do not add new orchestration here. */
 import { createHash } from "node:crypto";
 import { selectKissExecution, type KissInput, type KissMode, type KissDecision } from "./kiss.js";
 
