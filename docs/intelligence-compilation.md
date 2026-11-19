@@ -75,3 +75,11 @@ tool execution, signed package, or external authorization is included.
 Before field use: calibrated OOD/uncertainty measurement, independent real-world
 datasets, temporal holdouts grouped by episode, bounded latency tests, hardware-in-loop,
 runtime failsafe, and an authorization boundary.
+
+## Optional ZeroGPU d1.1 decision provider
+
+ZeroGPU documents POST https://api.zerogpu.ai/v1/systemone as a native typed decision endpoint. The x-project-id header is optional. `createZeroGpuCompilationDecisionProvider` connects this endpoint through the existing `HttpJevProvider`, preserving external Jev choice semantics and abstention on failures. Pass `process.env.ZGPU_API_KEY ?? process.env.ZEROGPU_API_KEY` as apiKey at runtime; never store the key in code.
+
+Example: `const provider = createZeroGpuCompilationDecisionProvider({apiKey: process.env.ZGPU_API_KEY ?? ""}); const choice = await requestSequentialJevChoice(plan,"base",["inspect","hold"],provider);`
+
+This is remote decision inference, not edge/offline execution. The older 403 response from GET /v1/models does not by itself establish whether POST /v1/systemone accepts the key. A live authenticated decision is still unverified. Locally on Acer at 91af93d, `npm run typecheck` and `npm test` passed (238/238, 0 failed), with mock HTTP transport for the ZeroGPU tests.
