@@ -105,3 +105,45 @@ Reproducible Acer command: `OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 MKL_NUM_THR
 Observed at SHA `6fe989507bf81af65ea4bd124515b7145421b839`: 2/2 Python tests, 238/238 Node tests and TypeScript typecheck all passed. Learned portable artifact: 3,396 bytes, digest `8da1a6bb8f714e9d0fef27ee5d440f4fca961b86c201826e9085177a634333f9`. Training had 2,936 in-scope synthetic observations and a separate 992-observation in-scope synthetic holdout: raw accuracy 90.73%; selective accuracy among 749 accepted decisions 97.60%; selective coverage 75.50%. Another 500-observation timing probe showed p50 0.0833 ms, p95 0.1133 ms, p99 0.2041 ms in pure Python CPU. Do not equate these numbers with Jev inference latency, autonomous safety, calibration, flight hardware performance, or generalization. Training reached 60 maximum iterations before full convergence; accuracy and latency are benchmark observations only. The earlier PyTorch attempt failed under Acer resource pressure with bus error; CPU sklearn training completed.
 
 The exported artifact is local under `/tmp`, **not shipped with repository and not deployed**. For production evaluation, use independent real-world episode-grouped holdouts, OOD checks, a domain safety mechanism, power/thermal profiling and physical hardware-in-loop tests. No real-world physical model or local Jev weights were available in this run.
+
+## Portable synthetic student: correction and independent runtime verification (2026-11-19)
+
+A learned **synthetic** 5→16→3 MLP student has been saved as
+`examples/intelligence/synthetic-student-v1.json` (3,396 bytes, file SHA-256
+`5b50ada87490bce30fc4ddceccfaf362555c57e9c8795d1bc3b240a23066752c`).
+It is research-only and contains no Jev weights or flight observations.
+The model is not a substitute for Jev: it proposes an advisory action and is
+subject to separate domain and execution checks.
+
+An independent seeded 20,000-case synthetic probe found **259**
+hazard-incompatible `inspect` suggestions among 9,560 accepted choices before
+the correction. Adding a **separate** observation-based synthetic-domain
+eligibility screen reduced this to **0 out of 9,301 accepted** under that
+same probe; the screen abstains when incompatible with its toy teacher rules.
+This does not prove the absence of failures under new scenarios or real-world
+flight safety. Softmax confidence remains uncalibrated; numeric overflow now
+also triggers `no_decision`.
+
+The identical model JSON was copied to a separate Mac worker and loaded with
+stdlib-only Python code without numpy, scikit-learn, training libraries or
+network inference. SHA-256 matched. On Acer at commit `d3beaf0`: 6/6 compact
+student Python tests, 238/238 Node tests and TypeScript typecheck passed.
+The original Acer working branch was restored.
+
+Reproduce with:
+```sh
+python3 -m unittest discover -s scripts -p 'test_compact_student.py'
+python3 scripts/benchmark_compact_student.py \
+  --artifact examples/intelligence/synthetic-student-v1.json \
+  --samples 5000 --repetitions 3
+```
+
+On the Mac worker, 3 × 5,000 real student-inference trials after warm-up
+returned 2,330 choices and 2,670 abstentions per trial; zero conflicts with
+the same **synthetic** rule. The p50 was 0.126–0.133 ms, but p99 ranged
+**4.26–17.84 ms**, with a maximum above 69 ms. Tail latency on this loaded
+virtual worker is therefore **not bounded** to a real-time deadline.
+Measurements exclude sensors, data preprocessing outside the model,
+actuation, an actual Jev inference call, and drone hardware. The attached
+model is an inspectable prototype, not a qualified deployment package,
+cryptographically authenticated supply-chain artifact or certified model.
