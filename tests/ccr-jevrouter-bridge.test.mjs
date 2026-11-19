@@ -5,7 +5,7 @@ const body = { state: { task: 'Fix a simple typo' }, questions: { route: { type:
 
 test('rejects malformed and untrusted requests', () => {
   assert.throws(() => validateRequest({ ...body, state: { task: '' } }));
-  assert.throws(() => validateRequest({ ...body, questions: { route: { type: 'choice', criteria: { fast: 'x' } } } } }));
+  assert.throws(() => validateRequest({ ...body, questions: { route: { type: 'choice', criteria: { fast: 'x' } } } }));
   assert.throws(() => createBridge({ decide: () => {}, host: '0.0.0.0' }));
 });
 test('maps choice and abstains on denied or malformed decisions', () => {
