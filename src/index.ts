@@ -43,3 +43,4 @@ export * from "./sequential-intelligence.js";
 export * from "./empirical-world-model.js";
 export * from "./intelligence-native-jev.js";
 export * from "./intelligence-zerogpu.js";
+export * from "./intelligence-provider-catalog.js";
