@@ -179,3 +179,37 @@ as well as real-time scheduling guarantees. The five logged completions
 despite a single requested replica and `restart_policy=never` were not
 explained and should be examined for repeat-execution/cost control.
 No production or real-world safety claims follow from these synthetic results.
+
+## ZeroGPU d1.1 vs synthetic student comparison harness
+
+`scripts/compare_zerogpu_d11_student.py` contains a strict, bounded set of
+12 synthetic observations. Each is evaluated with the **actual portable
+student**; in `--live` mode the same observation is sent to ZeroGPU
+`d1.1` as a typed `choice` over `inspect`, `hold`, `return` and
+`no_decision`. The script reports agreement with a toy teacher and
+cross-model agreement. There are no retries, no physical actuation and
+no credentials in source or reports.
+
+Usage in a runtime that already provides `ZGPU_API_KEY` or
+`ZEROGPU_API_KEY` via an approved environment:
+```sh
+python3 scripts/compare_zerogpu_d11_student.py --live --limit 12
+```
+`--live` is **opt-in**. Without it, only local student choices are
+evaluated. A missing permitted environment credential prevents any
+request rather than searching other secret files.
+
+**Measured on Acer at SHA `8857840`:** local-only mode processed all
+12 cases; the student matched 9/12 toy teacher labels (abstaining on
+three additional cases). The six original student tests and five new
+comparison tests passed, as did `npm run typecheck` and 238/238 Node
+tests. The actual live attempt reported
+`ZGPU_API_KEY environment variable missing` (exit 3, zero API calls).
+A valid credential has been used by a **different existing Hermes
+ZeroGPU chat adapter**, but that does not prove availability of
+`/v1/systemone` or performance of d1.1.
+
+Therefore: **no d1.1 latency, accuracy, response distribution or
+authenticated System One availability has been measured**. Never
+substitute the local student's measurements or the Llama chat
+endpoint's results for ZeroGPU d1.1.
