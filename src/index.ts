@@ -21,6 +21,7 @@ export * from "./spend-intelligence.js";
 export * from "./prompt-intelligence.js";
 export * from "./pre-prompt-intelligence.js";
 export * from "./intelligent-prompt-routing.js";
+export * from "./kiss.js";
 export * from "./spend-assessment.js";
 export * from "./partner-white-label.js";
 export * from "./partner-pilot.js";
