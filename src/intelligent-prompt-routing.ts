@@ -38,5 +38,5 @@ export async function routeIntelligentPrompt(args:{
   return {status:'abstain',reason:'router_no_decision',plan,result,
    evidenceIds:qualified.map(x=>x.evidenceId),kissDecision};
  return {status:'routed',reason:'decision_only',plan,result,
-  evidenceIds:qualified.map(x=>x.evidenceId)};
+  evidenceIds:qualified.map(x=>x.evidenceId),kissDecision};
 }
