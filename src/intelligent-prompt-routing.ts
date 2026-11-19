@@ -1,22 +1,20 @@
 import {planPrompt,type PromptPlanInput} from './pre-prompt-intelligence.js';
 import {recommendModelsForTask,type ModelTaskBenchmark} from './compute-task-fit.js';
 import {JevRouter} from './router.js';
-import {selectKissExecution,type KissInput,type KissDecision} from './kiss.js';
 import type {CapabilityManifest,RouteResult} from './types.js';
 
-/** Connect prompt planning, measured task fit and Jev's decision-only router. */
+/** Legacy model candidate preparation. Jev only decides between eligible
+ * choices; KISS and goal orchestration belong to AI Bridge.
+ * @deprecated Use AI Bridge to prepare model candidates and mission context.
+ */
 export async function routeIntelligentPrompt(args:{
  input:PromptPlanInput; taskClass:string; minimumQuality:number;
  benchmarks:readonly ModelTaskBenchmark[]; router:JevRouter;
  candidates:CapabilityManifest[];
- kiss?:Omit<KissInput,'request'>;
-}):Promise<{status:'abstain'|'routed'|'kiss'; reason:string; plan:ReturnType<typeof planPrompt>;
- result?:RouteResult; evidenceIds:string[]; kissDecision:KissDecision}> {
- const kissDecision=selectKissExecution({...args.kiss, request:args.input.originalPrompt, maxCostMinor:Math.min(args.input.maxCostMinor, args.kiss?.maxCostMinor ?? args.input.maxCostMinor), requiresAction:args.input.requiresAction || args.kiss?.requiresAction===true});
+}):Promise<{status:'abstain'|'routed'; reason:string; plan:ReturnType<typeof planPrompt>;
+ result?:RouteResult; evidenceIds:string[]}> {
  const plan=planPrompt(args.input);
- const abstain=(reason:string)=>({status:'abstain' as const,reason,plan,evidenceIds:[],kissDecision});
- if(kissDecision.mode==='deterministic') return {status:'kiss' as const,reason:kissDecision.reason,plan,evidenceIds:[],kissDecision};
- if(kissDecision.mode==='abstain') return abstain(kissDecision.reason);
+ const abstain=(reason:string)=>({status:'abstain' as const,reason,plan,evidenceIds:[]});
  if(plan.needsClarification) return abstain('clarification_required');
  if(!plan.routingCandidates.length) return abstain('no_policy_eligible_models');
  if(!args.taskClass.trim()) return abstain('task_class_missing');
@@ -32,11 +30,11 @@ export async function routeIntelligentPrompt(args:{
   request:plan.refinedPrompt,
   actor:args.input.actorId,
   context:{tenantId:args.input.tenantId,taskClass:args.taskClass,
-   qualifiedModelIds:qualified.map(x=>x.modelId),kissMode:kissDecision.mode}
+   qualifiedModelIds:qualified.map(x=>x.modelId)}
  },candidates);
  if(result.status==='no_decision' || !result.decision.selected)
   return {status:'abstain',reason:'router_no_decision',plan,result,
-   evidenceIds:qualified.map(x=>x.evidenceId),kissDecision};
+   evidenceIds:qualified.map(x=>x.evidenceId)};
  return {status:'routed',reason:'decision_only',plan,result,
-  evidenceIds:qualified.map(x=>x.evidenceId),kissDecision};
+  evidenceIds:qualified.map(x=>x.evidenceId)};
 }
