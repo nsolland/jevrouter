@@ -36,7 +36,7 @@ test("ZeroGPU provider pins the model and rejects cross-model requests before an
  try{
   const provider=createDecisionProvider({provider:"zerogpu-d1.1",apiKey:"test-only"});
   const request={state:"clear",candidates:[],questions:{q:{type:"choice",criteria:{inspect:"inspect",hold:"hold"}}}};
-  await assert.rejects(provider.decide({...request,model:"jev-latest"}),/pinned/);
+  assert.throws(()=>provider.decide({...request,model:"jev-latest"}),/pinned/);
   assert.equal(calls,0);
   const result=await provider.decide(request);
   assert.equal(result.answers.q.choice,"hold");
