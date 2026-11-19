@@ -36,3 +36,4 @@ export * from "./retrospective-model-value.js";
 
 export * from "./intelligence-compilation.js";
 export * from "./scenario-simulator.js";
+export * from "./intelligence-jev-adapter.js";
