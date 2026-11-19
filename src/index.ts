@@ -35,3 +35,4 @@ export * from "./gemini-hydrogen.js";
 export * from "./retrospective-model-value.js";
 
 export * from "./intelligence-compilation.js";
+export * from "./scenario-simulator.js";
