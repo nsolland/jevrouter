@@ -29,28 +29,22 @@ test('missing benchmarks and external actions abstain',async()=>{
  taskClass:'analysis',minimumQuality:0.8,benchmarks,router,candidates})).status,'abstain');
 });
 
-test('KISS trusted answer bypasses provider but never authorizes execution',async()=>{
+test('Jev model choice does not implement KISS or execute external actions',async()=>{
  let called=0;
  const rejectingProvider:JevProvider={name:'reject',async decide(){called++;throw new Error('must not call');}};
- const r=await routeIntelligentPrompt({
-  input:{...input,originalPrompt:'Return cached value',maxCostMinor:0},
-  taskClass:'analysis',minimumQuality:0.8,benchmarks:[],
-  router:new JevRouter(rejectingProvider),candidates,
-  kiss:{deterministicAnswer:'cached-result'}
- });
- assert.equal(r.status,'kiss');
- assert.equal(r.kissDecision.mode,'deterministic');
- assert.equal(r.kissDecision.deterministicAnswer,'cached-result');
- assert.equal(r.kissDecision.executionAuthorized,false);
- assert.equal(called,0);
-});
-test('KISS cannot bypass action requirements with cached answer',async()=>{
- const r=await routeIntelligentPrompt({
-  input:{...input,requiresAction:true,maxCostMinor:0},
+ const zeroBudget=await routeIntelligentPrompt({
+  input:{...input,maxCostMinor:0},
   taskClass:'analysis',minimumQuality:0.8,benchmarks,
-  router:new JevRouter(provider),candidates,
-  kiss:{deterministicAnswer:'unsafe'}
+  router:new JevRouter(rejectingProvider),candidates
  });
- assert.equal(r.status,'abstain');
- assert.equal(r.kissDecision.mode,'abstain');
+ assert.equal(zeroBudget.status,'abstain');
+ assert.equal(called,0);
+ assert.equal('kissDecision' in zeroBudget,false);
+ const action=await routeIntelligentPrompt({
+  input:{...input,requiresAction:true},
+  taskClass:'analysis',minimumQuality:0.8,benchmarks,
+  router:new JevRouter(rejectingProvider),candidates
+ });
+ assert.equal(action.status,'abstain');
+ assert.equal(called,0);
 });
