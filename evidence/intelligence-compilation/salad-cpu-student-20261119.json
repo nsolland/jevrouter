@@ -1,0 +1,247 @@
+{
+  "schema": "jev.intelligence-compilation.salad-cpu-evidence.v1",
+  "date_utc": "2026-11-19",
+  "source_pr": "https://github.com/nsolland/jevrouter/pull/21",
+  "source_commit": "ad707119b025f4cdd717d9cb369a40c668ae7606",
+  "provider": "Salad Container Engine",
+  "organization": "valoresearch",
+  "project": "exup",
+  "container_group": "jev-intcomp-salad-1119-a1",
+  "container_image": "docker.io/library/python:3.12-slim",
+  "requested_cpu": 2,
+  "requested_memory_mb": 2048,
+  "configured_replicas": 1,
+  "restart_policy": "never",
+  "artifact_path": "examples/intelligence/synthetic-student-v1.json",
+  "artifact_file_sha256": "5b50ada87490bce30fc4ddceccfaf362555c57e9c8795d1bc3b240a23066752c",
+  "kind": "synthetic_learned_student_cpu_only",
+  "real_model_inference": true,
+  "jev_model_inference": false,
+  "model_training_on_salad": false,
+  "used_network_for_model_inference": false,
+  "salad_result_instance_count": 5,
+  "total_inference_observations": 75000,
+  "salad_log_entries": 24,
+  "salad_log_exit_messages": [
+    {
+      "message": "Instance Exited:0 (Exited Successfully)",
+      "time": "2026-11-19T20:35:11.414854+00:00"
+    },
+    {
+      "message": "Instance Exited:0 (Exited Successfully)",
+      "time": "2026-11-19T20:35:16.5898849+00:00"
+    },
+    {
+      "message": "Instance Exited:0 (Exited Successfully)",
+      "time": "2026-11-19T20:35:20.9366247+00:00"
+    },
+    {
+      "message": "Instance Exited:0 (Exited Successfully)",
+      "time": "2026-11-19T20:35:25.354415+00:00"
+    },
+    {
+      "message": "Instance Exited:0 (Exited Successfully)",
+      "time": "2026-11-19T20:35:30.1217041+00:00"
+    }
+  ],
+  "instance_results": [
+    {
+      "time": "2026-11-19T20:35:09.293697+00:00",
+      "instance_id": "b5353c74-562c-41b6-93b9-1ca6de58111e",
+      "machine_id": "ddb99459-87dd-e955-9aae-af23d5d9b84b",
+      "artifact_sha256": "5b50ada87490bce30fc4ddceccfaf362555c57e9c8795d1bc3b240a23066752c",
+      "measurements": [
+        {
+          "samples": 5000,
+          "accepted": 2330,
+          "abstained": 2670,
+          "synthetic_rule_incompatible": 0,
+          "p50_ms": 0.012054,
+          "p95_ms": 0.013125,
+          "p99_ms": 0.017913,
+          "max_ms": 0.126689
+        },
+        {
+          "samples": 5000,
+          "accepted": 2330,
+          "abstained": 2670,
+          "synthetic_rule_incompatible": 0,
+          "p50_ms": 0.011939,
+          "p95_ms": 0.01269,
+          "p99_ms": 0.016044,
+          "max_ms": 0.066626
+        },
+        {
+          "samples": 5000,
+          "accepted": 2330,
+          "abstained": 2670,
+          "synthetic_rule_incompatible": 0,
+          "p50_ms": 0.011972,
+          "p95_ms": 0.012827,
+          "p99_ms": 0.015916,
+          "max_ms": 0.099292
+        }
+      ]
+    },
+    {
+      "time": "2026-11-19T20:35:14.242459+00:00",
+      "instance_id": "2ed14ae3-e493-48b3-9c10-63b577819214",
+      "machine_id": "ddb99459-87dd-e955-9aae-af23d5d9b84b",
+      "artifact_sha256": "5b50ada87490bce30fc4ddceccfaf362555c57e9c8795d1bc3b240a23066752c",
+      "measurements": [
+        {
+          "samples": 5000,
+          "accepted": 2330,
+          "abstained": 2670,
+          "synthetic_rule_incompatible": 0,
+          "p50_ms": 0.01172,
+          "p95_ms": 0.012581,
+          "p99_ms": 0.018157,
+          "max_ms": 0.083734
+        },
+        {
+          "samples": 5000,
+          "accepted": 2330,
+          "abstained": 2670,
+          "synthetic_rule_incompatible": 0,
+          "p50_ms": 0.011669,
+          "p95_ms": 0.012338,
+          "p99_ms": 0.014486,
+          "max_ms": 0.104764
+        },
+        {
+          "samples": 5000,
+          "accepted": 2330,
+          "abstained": 2670,
+          "synthetic_rule_incompatible": 0,
+          "p50_ms": 0.011675,
+          "p95_ms": 0.012363,
+          "p99_ms": 0.016131,
+          "max_ms": 0.083276
+        }
+      ]
+    },
+    {
+      "time": "2026-11-19T20:35:18.906796+00:00",
+      "instance_id": "152afeb3-0324-4414-9d0e-0c5e475fce9b",
+      "machine_id": "ddb99459-87dd-e955-9aae-af23d5d9b84b",
+      "artifact_sha256": "5b50ada87490bce30fc4ddceccfaf362555c57e9c8795d1bc3b240a23066752c",
+      "measurements": [
+        {
+          "samples": 5000,
+          "accepted": 2330,
+          "abstained": 2670,
+          "synthetic_rule_incompatible": 0,
+          "p50_ms": 0.011869,
+          "p95_ms": 0.012844,
+          "p99_ms": 0.017274,
+          "max_ms": 0.058267
+        },
+        {
+          "samples": 5000,
+          "accepted": 2330,
+          "abstained": 2670,
+          "synthetic_rule_incompatible": 0,
+          "p50_ms": 0.01177,
+          "p95_ms": 0.012644,
+          "p99_ms": 0.016735,
+          "max_ms": 0.110777
+        },
+        {
+          "samples": 5000,
+          "accepted": 2330,
+          "abstained": 2670,
+          "synthetic_rule_incompatible": 0,
+          "p50_ms": 0.011714,
+          "p95_ms": 0.012631,
+          "p99_ms": 0.015918,
+          "max_ms": 0.129939
+        }
+      ]
+    },
+    {
+      "time": "2026-11-19T20:35:23.130239+00:00",
+      "instance_id": "de34d304-efe8-4a51-9273-63a6005e114a",
+      "machine_id": "ddb99459-87dd-e955-9aae-af23d5d9b84b",
+      "artifact_sha256": "5b50ada87490bce30fc4ddceccfaf362555c57e9c8795d1bc3b240a23066752c",
+      "measurements": [
+        {
+          "samples": 5000,
+          "accepted": 2330,
+          "abstained": 2670,
+          "synthetic_rule_incompatible": 0,
+          "p50_ms": 0.011876,
+          "p95_ms": 0.012992,
+          "p99_ms": 0.019543,
+          "max_ms": 0.160603
+        },
+        {
+          "samples": 5000,
+          "accepted": 2330,
+          "abstained": 2670,
+          "synthetic_rule_incompatible": 0,
+          "p50_ms": 0.011775,
+          "p95_ms": 0.012688,
+          "p99_ms": 0.01829,
+          "max_ms": 0.125095
+        },
+        {
+          "samples": 5000,
+          "accepted": 2330,
+          "abstained": 2670,
+          "synthetic_rule_incompatible": 0,
+          "p50_ms": 0.011693,
+          "p95_ms": 0.01251,
+          "p99_ms": 0.018319,
+          "max_ms": 0.086138
+        }
+      ]
+    },
+    {
+      "time": "2026-11-19T20:35:27.219585+00:00",
+      "instance_id": "60745511-968b-4e9a-9da7-1843efe21fa1",
+      "machine_id": "ddb99459-87dd-e955-9aae-af23d5d9b84b",
+      "artifact_sha256": "5b50ada87490bce30fc4ddceccfaf362555c57e9c8795d1bc3b240a23066752c",
+      "measurements": [
+        {
+          "samples": 5000,
+          "accepted": 2330,
+          "abstained": 2670,
+          "synthetic_rule_incompatible": 0,
+          "p50_ms": 0.011977,
+          "p95_ms": 0.013058,
+          "p99_ms": 0.020045,
+          "max_ms": 0.116095
+        },
+        {
+          "samples": 5000,
+          "accepted": 2330,
+          "abstained": 2670,
+          "synthetic_rule_incompatible": 0,
+          "p50_ms": 0.011824,
+          "p95_ms": 0.012625,
+          "p99_ms": 0.017881,
+          "max_ms": 0.083124
+        },
+        {
+          "samples": 5000,
+          "accepted": 2330,
+          "abstained": 2670,
+          "synthetic_rule_incompatible": 0,
+          "p50_ms": 0.011818,
+          "p95_ms": 0.012777,
+          "p99_ms": 0.017456,
+          "max_ms": 0.123156
+        }
+      ]
+    }
+  ],
+  "container_stopped_verified": true,
+  "limitations": [
+    "Training labels and evaluation conditions are synthetic; not real-world safety or accuracy evidence",
+    "CPU inference only. Excludes sensor ingestion, remote API latency, operating-system real-time deadlines, and actuation",
+    "Unexpected five exited instances logged despite configured single replica and never restart; cause unverified",
+    "No external billing amount or GPU usage measured",
+    "No genuine Jev d1.1 inference verified"
+  ]
+}
