@@ -252,3 +252,42 @@ On Acer, the new diagnostic unit tests 4/4, comparison unit tests 5/5,
 compact student tests 6/6, Node tests 238/238, TypeScript typecheck and
 shell syntax check all passed. The original repository working branch
 was restored. **No d1.1 vs student accuracy/latency claim is justified.**
+
+## Typed decision provider catalog (model ≠ API endpoint ≠ account access)
+
+`src/intelligence-provider-catalog.ts` exposes:
+- `DECISION_PROVIDER_CATALOG`: explicit provider ID, model ID, endpoint,
+  transport (`remote`/`local`), operation and credential requirement.
+- `createDecisionProvider({provider,apiKey?,timeoutMs?})`: selects an
+  **existing** `JevProvider` implementation. No hidden provider fallback or
+  implicit account entitlement. It does not invoke the service until
+  `decide()` is called.
+- `classifyProviderAccess(status,errorCode?)`: distinguishes a missing
+  configured credential from remote HTTP 401/403, rate limit, upstream
+  unavailability, timeout, and malformed responses.
+
+Supported decision backends: TypeSafe `jev-latest` at
+`/v1/systemone`, ZeroGPU `d1.1` at its `/v1/systemone` and a
+local Open Spark `spark-s1-4b-v3` at `/v1/evaluate`.
+This is **not** a registry of ZeroGPU chat/completion models. The
+`ZeroGpuSystemOneProvider` is now pinned to `d1.1`; caller attempts
+to override its model ID are rejected before network access.
+
+Example:
+```ts
+import {createDecisionProvider} from "jevrouter";
+const decisionModel = createDecisionProvider({
+  provider:"zerogpu-d1.1",
+  apiKey: process.env.ZGPU_API_KEY,
+});
+const response = await decisionModel.decide(typedRequest);
+```
+
+Tests on Acer at `7f23b530070a4c685bdec5e223a6c7f9abd56a37`:
+`npm run build` PASS, `npm run typecheck` PASS,
+`npm test` **242/242 PASS**, 7/7 focused provider tests PASS.
+The original working branch was restored.
+This reusable selection contract is ready for AI Bridge to consume;
+an AI Bridge runtime deployment was **not** performed here. ZeroGPU
+`d1.1` remains inaccessible (observed 403 with two documented auth
+methods), and registry creation does not change that provider permission.
