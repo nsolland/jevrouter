@@ -36,3 +36,14 @@ export * from "./customer-roi-time.js";
 export * from "./time-aware-spend-assessment.js";
 export * from "./gemini-hydrogen.js";
 export * from "./retrospective-model-value.js";
+
+export {compileScenarios,decideCompiled,evaluateHoldout,evaluateObservedHoldout} from "./intelligence-compilation.js";
+export type {Outcome,CompiledPolicy,Decision as CompiledDecision} from "./intelligence-compilation.js";
+export * from "./scenario-simulator.js";
+export {requestCompiledJevChoice,requestSequentialJevChoice} from "./intelligence-jev-adapter.js";
+export type {JevChoiceRequest,JevChoiceResponse,JevProvider as IntelligenceJevProvider} from "./intelligence-jev-adapter.js";
+export * from "./sequential-intelligence.js";
+export * from "./empirical-world-model.js";
+export * from "./intelligence-native-jev.js";
+export * from "./intelligence-zerogpu.js";
+export * from "./intelligence-provider-catalog.js";

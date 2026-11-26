@@ -1,0 +1,38 @@
+{
+  "schema": "jev.intelligence-compilation.zerogpu-access-diagnostic.v1",
+  "date": "2026-11-19",
+  "source": "Acer systemd user service environment",
+  "target": "POST https://api.zerogpu.ai/v1/systemone",
+  "model": "d1.1",
+  "credential": {
+    "hermes_secret_store_present": true,
+    "systemd_user_environment_present": true,
+    "secret_value_equivalent": true,
+    "secret_exposed": false
+  },
+  "checks": [
+    {
+      "auth": "bearer",
+      "http_status": 403,
+      "requests": 1,
+      "verified_choice": false
+    },
+    {
+      "auth": "x-api-key",
+      "http_status": 403,
+      "requests": 1,
+      "verified_choice": false,
+      "request_id": null
+    }
+  ],
+  "status": "PROVIDER_ACCESS_BLOCKED",
+  "inference_success_count": 0,
+  "not_established": [
+    "provider-specific reason for 403",
+    "d1.1 account/model entitlement",
+    "d1.1 latency",
+    "d1.1 decision accuracy"
+  ],
+  "next_external_dependency": "ZeroGPU account must authorize /v1/systemone d1.1 for the configured credential and project, or supply a credential with such permission.",
+  "environment_note": "Earlier bounded ZeroGPU chat inference succeeded with the separate /v1/chat/completions path, which does not establish System One rights."
+}
